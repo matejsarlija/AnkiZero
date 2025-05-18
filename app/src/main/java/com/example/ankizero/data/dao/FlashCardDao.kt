@@ -83,18 +83,18 @@ interface FlashcardDao {
     fun getDueCardsCount(currentTime: Long): Flow<Int>
 
     /**
-     * Search for flashcards by French word or English translation.
+     * Search for flashcards by French word.
      * @param query The search query
      * @return A Flow of flashcards matching the search query
      */
-    @Query("SELECT * FROM flashcard WHERE frenchWord LIKE '%' || :query || '%' OR englishTranslation LIKE '%' || :query || '%' ORDER BY creationDate DESC")
+    @Query("SELECT * FROM flashcard WHERE frenchWord LIKE '%' || :query || '%' ORDER BY creationDate DESC")
     fun searchFlashcards(query: String): Flow<List<Flashcard>>
 
     /**
      * Get flashcards ordered by difficulty (hardest first).
      * @return A Flow of flashcards ordered by difficulty
      */
-    @Query("SELECT * FROM flashcard ORDER BY difficulty DESC NULLS LAST")
+    @Query("SELECT * FROM flashcard ORDER BY difficulty DESC")
     fun getFlashcardsByDifficulty(): Flow<List<Flashcard>>
 
     /**
