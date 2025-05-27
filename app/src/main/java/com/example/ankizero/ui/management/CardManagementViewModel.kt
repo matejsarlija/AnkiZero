@@ -64,4 +64,20 @@ class CardManagementViewModel(private val repository: FlashcardRepository) : Vie
             _uiState.value = _uiState.value.copy(selected = emptySet())
         }
     }
+
+    fun updateCard(card: Flashcard, onComplete: () -> Unit) {
+        viewModelScope.launch {
+            repository.updateFlashcard(card)
+            loadCards()
+            onComplete()
+        }
+    }
+
+    fun createCard(card: Flashcard, onComplete: () -> Unit) {
+        viewModelScope.launch {
+            repository.insertFlashcard(card)
+            loadCards()
+            onComplete()
+        }
+    }
 }

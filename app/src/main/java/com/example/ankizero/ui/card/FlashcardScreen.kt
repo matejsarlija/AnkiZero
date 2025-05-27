@@ -3,6 +3,7 @@ package com.example.ankizero.ui.card
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -21,8 +22,7 @@ import kotlin.math.abs
 
 @Composable
 fun FlashcardScreen(
-    viewModel: FlashcardViewModel,
-    onEdit: (Long) -> Unit
+    viewModel: FlashcardViewModel
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val currentCard = uiState.currentCard
@@ -40,7 +40,7 @@ fun FlashcardScreen(
             Text("No cards due!", fontSize = 22.sp, fontWeight = FontWeight.Bold)
         } else {
             Flashcard3D(
-                card = currentCard!!,
+                card = currentCard,
                 flipped = uiState.flipped,
                 onFlip = { viewModel.flipCard() },
                 onSwipeLeft = { viewModel.nextCard() },
@@ -65,7 +65,7 @@ fun FlashcardScreen(
                 }
                 Spacer(Modifier.height(16.dp))
                 LinearProgressIndicator(
-                    progress = if (total > 0) progress / total.toFloat() else 0f,
+                    progress = { if (total > 0) progress / total.toFloat() else 0f },
                     modifier = Modifier.fillMaxWidth(0.7f)
                 )
                 Text("${progress + 1} / $total", fontSize = 16.sp)
@@ -76,14 +76,14 @@ fun FlashcardScreen(
 
 @Composable
 fun Flashcard3D(
-    card: Flashcard,
+    card: Flashcard?,
     flipped: Boolean,
     onFlip: () -> Unit,
     onSwipeLeft: () -> Unit,
     onSwipeRight: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var rotationY by remember { mutableStateOf(0f) }
+    var rotationY by remember { mutableFloatStateOf(0f) }
     val animatedRotationY by animateFloatAsState(targetValue = if (flipped) 180f else 0f)
 
     Box(
@@ -113,13 +113,13 @@ fun Flashcard3D(
     ) {
         if (animatedRotationY <= 90f) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(card.french, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                Text(card?.french ?: "", fontSize = 28.sp, fontWeight = FontWeight.Bold)
             }
         } else {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(card.english, fontSize = 24.sp, fontWeight = FontWeight.Normal)
+                Text(card?.english ?: "", fontSize = 24.sp, fontWeight = FontWeight.Normal)
                 Spacer(Modifier.height(8.dp))
-                Text("Notes: ${card.notes}", fontSize = 14.sp)
+                Text("Notes: ${card?.notes ?: ""}", fontSize = 14.sp)
             }
         }
     }

@@ -7,8 +7,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.automirrored.filled.List
+// Change 1: Use the correct import for Camera icon
 import androidx.compose.material.icons.filled.CameraAlt
+// Alternative icons if PhotoCamera isn't available
+// import androidx.compose.material.icons.filled.AddAPhoto
+// import androidx.compose.material.icons.outlined.Camera
+import androidx.compose.material.icons.rounded.CameraAlt
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -21,10 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.lifecycle.viewmodel.compose.viewModelScope
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -33,7 +35,6 @@ import androidx.navigation.navArgument
 import com.example.ankizero.data.database.AppDatabase
 import com.example.ankizero.data.repository.FlashcardRepository
 import com.example.ankizero.ui.theme.AnkiZeroTheme
-import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,7 +62,8 @@ fun AnkiZeroApp(repository: FlashcardRepository) {
     val navController = rememberNavController()
     val navItems = listOf(
         NavItem("flashcard", Icons.Default.Home, "Review"),
-        NavItem("management", Icons.Default.List, "Cards"),
+        NavItem("management", Icons.AutoMirrored.Filled.List, "Cards"),
+        // Change 2: Update the Camera icon reference
         NavItem("ocr", Icons.Default.CameraAlt, "OCR"),
         NavItem("notifications", Icons.Default.Notifications, "Notifications")
     )
@@ -77,8 +79,7 @@ fun AnkiZeroApp(repository: FlashcardRepository) {
                         icon = {
                             Icon(
                                 imageVector = item.icon,
-                                contentDescription = item.label,
-                                modifier = Modifier.semantics { contentDescription = item.label }
+                                contentDescription = item.label
                             )
                         },
                         label = { M3Text(item.label) }
@@ -99,8 +100,7 @@ fun AnkiZeroApp(repository: FlashcardRepository) {
                     factory = com.example.ankizero.ui.card.FlashcardViewModelFactory(repository)
                 )
                 com.example.ankizero.ui.card.FlashcardScreen(
-                    viewModel = viewModel,
-                    onEdit = { navController.navigate("edit/$it") }
+                    viewModel = viewModel
                 )
             }
 
@@ -136,16 +136,14 @@ fun AnkiZeroApp(repository: FlashcardRepository) {
                         card = card,
                         onSave = { updated ->
                             // Save logic (update in repository)
-                            viewModelScope.launch {
-                                repository.updateFlashcard(updated)
+                            viewModel.updateCard(updated, onComplete = {
                                 navController.popBackStack()
-                                viewModel.loadCards()
-                            }
+                            })
                         },
                         onCancel = { navController.popBackStack() }
                     )
                 } else {
-                    androidx.compose.material3.Text("Card not found.")
+                    M3Text("Card not found.")
                 }
             }
 
@@ -156,11 +154,9 @@ fun AnkiZeroApp(repository: FlashcardRepository) {
                 )
                 com.example.ankizero.ui.management.CreateCardScreen(
                     onSave = { newCard ->
-                        viewModelScope.launch {
-                            repository.insertFlashcard(newCard)
+                        viewModel.createCard(newCard, onComplete = {
                             navController.popBackStack()
-                            viewModel.loadCards()
-                        }
+                        })
                     },
                     onCancel = { navController.popBackStack() }
                 )
