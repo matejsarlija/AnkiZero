@@ -1,9 +1,14 @@
+// TODO: Add Google Services plugin for Firebase
+// plugins {
+//     id("com.google.gms.google-services") version "x.y.z" apply false // Apply at project level
+// }
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     id("com.google.devtools.ksp")
     alias(libs.plugins.compose.compiler)
-
+    // TODO: Apply Google Services plugin here if applied at project level
+    // id("com.google.gms.google-services")
 }
 
 android {
@@ -65,10 +70,17 @@ dependencies {
     implementation(libs.androidx.material.icons.extended)
 
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test) // Added
+    testImplementation(libs.mockito.core) // Added Mockito
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+
+    // TODO: Add Firebase BOM and Crashlytics dependencies
+    // implementation(platform("com.google.firebase:firebase-bom:x.y.z"))
+    // implementation("com.google.firebase:firebase-crashlytics-ktx")
+    // implementation("com.google.firebase:firebase-analytics-ktx") // Firebase Analytics
 }

@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">AnkiZero</string>
+    <string name="notification_channel_name">Study Reminders</string>
+    <string name="notification_channel_description">Daily reminders to review your flashcards.</string>
 </resources>

@@ -17,38 +17,18 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 import kotlin.math.roundToInt
 
-// Placeholder for preview and initial state
-val previewEditFlashcard = Flashcard(
-    id = 1L,
-    frenchWord = "Bonjour",
-    englishTranslation = "Hello",
-    pronunciation = "bon-zhoor",
-    example = "Bonjour, comment ça va?",
-    notes = "Common greeting.",
-    difficulty = 3, // Assuming 1-5
-    creationDate = LocalDate.now().minusDays(10).atStartOfDay().toEpochSecond(ZoneOffset.UTC),
-    nextReviewDate = LocalDate.now().plusDays(2).atStartOfDay().toEpochSecond(ZoneOffset.UTC),
-    easeFactor = 2.5f,
-    interval = 5
-)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EditCardScreen(
-    // cardId: Long, // In a real scenario, you'd pass ID and fetch the card via ViewModel
-    // For this UI task, we'll pass a full Flashcard object for simplicity as per MainActivity setup
-    cardToEdit: Flashcard,
-    onNavigateBack: () -> Unit
-    // onUpdateCard: (Flashcard) -> Unit // To be used when ViewModel is integrated
+fun CreateCardScreen(
+    onNavigateBack: () -> Unit,
+    // onSaveCard: (Flashcard) -> Unit // To be used when ViewModel is integrated
 ) {
-    var frenchWord by remember { mutableStateOf(cardToEdit.frenchWord) }
-    var englishTranslation by remember { mutableStateOf(cardToEdit.englishTranslation) }
-    var pronunciation by remember { mutableStateOf(cardToEdit.pronunciation ?: "") }
-    var exampleSentence by remember { mutableStateOf(cardToEdit.example ?: "") }
-    var notes by remember { mutableStateOf(cardToEdit.notes ?: "") }
-    // Difficulty: Slider 0f-4f maps to 1-5. So, (difficulty - 1) for slider.
-    var difficultySliderValue by remember { mutableStateOf((cardToEdit.difficulty ?: 3).toFloat() - 1) }
-
+    var frenchWord by remember { mutableStateOf("") }
+    var englishTranslation by remember { mutableStateOf("") }
+    var pronunciation by remember { mutableStateOf("") }
+    var exampleSentence by remember { mutableStateOf("") }
+    var notes by remember { mutableStateOf("") }
+    var difficulty by remember { mutableStateOf(2f) } // Default difficulty (e.g., 1-5, so 2f is like 3)
 
     var frenchWordError by remember { mutableStateOf<String?>(null) }
     var englishTranslationError by remember { mutableStateOf<String?>(null) }
@@ -65,30 +45,32 @@ fun EditCardScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Edit Card") },
+                title = { Text("Create New Card") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back") // CD Updated
                     }
                 },
                 actions = {
                     IconButton(onClick = {
                         if (validateFields()) {
-                            val updatedCard = cardToEdit.copy(
+                            val newCard = Flashcard(
                                 frenchWord = frenchWord,
                                 englishTranslation = englishTranslation,
                                 pronunciation = pronunciation.takeIf { it.isNotBlank() },
                                 example = exampleSentence.takeIf { it.isNotBlank() },
                                 notes = notes.takeIf { it.isNotBlank() },
-                                difficulty = difficultySliderValue.roundToInt() + 1
+                                difficulty = difficulty.roundToInt() + 1, // Assuming slider 0-4 maps to 1-5
+                                creationDate = LocalDate.now().atStartOfDay().toEpochSecond(ZoneOffset.UTC),
+                                nextReviewDate = LocalDate.now().atStartOfDay().toEpochSecond(ZoneOffset.UTC) // Default next review
                             )
-                            // onUpdateCard(updatedCard) // Call when ViewModel is integrated
+                            // onSaveCard(newCard) // Call when ViewModel is integrated
                             // For now, show a snackbar or log
-                            // scope.launch { snackbarHostState.showSnackbar("Card Updated (Logged)") }
+                            // scope.launch { snackbarHostState.showSnackbar("Card Created (Logged)") }
                             onNavigateBack() // Simulate save and navigate back
                         }
                     }) {
-                        Icon(Icons.Filled.Done, contentDescription = "Save changes to card")
+                        Icon(Icons.Filled.Done, contentDescription = "Save new card") // CD Updated
                     }
                 }
             )
@@ -159,14 +141,14 @@ fun EditCardScreen(
 
             Text("Difficulty (1-5)", style = MaterialTheme.typography.bodyMedium)
             Slider(
-                value = difficultySliderValue,
-                onValueChange = { difficultySliderValue = it },
+                value = difficulty,
+                onValueChange = { difficulty = it },
                 valueRange = 0f..4f, // Represents 1 to 5
                 steps = 3, // 0, 1, 2, 3, 4 (5 steps)
                 modifier = Modifier.fillMaxWidth()
             )
             Text(
-                text = "Selected: ${(difficultySliderValue.roundToInt() + 1)}",
+                text = "Selected: ${(difficulty.roundToInt() + 1)}",
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.align(Alignment.End)
             )
@@ -174,18 +156,30 @@ fun EditCardScreen(
     }
 }
 
-@Preview(showBackground = true, name = "Edit Card Screen - Light")
+@Preview(showBackground = true, name = "Create Card Screen - Light")
 @Composable
-fun EditCardScreenPreviewLight() {
+fun CreateCardScreenPreviewLight() {
     MaterialTheme(colorScheme = lightColorScheme()) {
-        EditCardScreen(cardToEdit = previewEditFlashcard, onNavigateBack = {})
+        CreateCardScreen(onNavigateBack = {})
     }
 }
 
-@Preview(showBackground = true, name = "Edit Card Screen - Dark")
+@Preview(showBackground = true, name = "Create Card Screen - Dark")
 @Composable
-fun EditCardScreenPreviewDark() {
+fun CreateCardScreenPreviewDark() {
     MaterialTheme(colorScheme = darkColorScheme()) {
-        EditCardScreen(cardToEdit = previewEditFlashcard, onNavigateBack = {})
+        CreateCardScreen(onNavigateBack = {})
+    }
+}
+
+@Preview(showBackground = true, name = "Create Card Screen - Error State")
+@Composable
+fun CreateCardScreenErrorPreview() {
+    MaterialTheme(colorScheme = lightColorScheme()) {
+        // This preview is hard to show with current state logic without interaction.
+        // We'd typically pass initial error states or use a helper.
+        // For now, this will render the default empty screen.
+        // To see errors, one would need to run on device/emulator and attempt to save empty.
+        CreateCardScreen(onNavigateBack = {})
     }
 }

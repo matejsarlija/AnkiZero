@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.ankizero.data.entity.Flashcard
 import com.example.ankizero.data.repository.FlashcardRepository
 import kotlinx.coroutines.flow.MutableStateFlow
+import com.example.ankizero.util.AnalyticsHelper // Added
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch

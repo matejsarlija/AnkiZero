@@ -26,6 +26,7 @@ data class Flashcard(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val frenchWord: String,
+    val englishTranslation: String, // Added field
     val creationDate: Long = LocalDate.now().atStartOfDay().toEpochSecond(ZoneOffset.UTC),
     val lastReviewed: Long? = null,
     val reviewCount: Int = 0,

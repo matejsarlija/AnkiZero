@@ -130,3 +130,49 @@ class FlashcardRepository(private val flashcardDao: FlashcardDao) {
         return updatedFlashcard
     }
 }
+
+/*
+TODO: Database Query Optimization Notes (for when Room DAO and Entities are finalized):
+1.  **Indexes:**
+    - Add indexes to `Flashcard` entity for frequently queried columns.
+        - `frenchWord` (for searching, alphabetical sorting)
+        - `englishTranslation` (for searching)
+        - `nextReviewDate` (for fetching due cards)
+        - `creationDate` (for "Recent" sorting)
+        - `difficulty` (for "Difficulty" sorting)
+    - Example in Entity: `@Entity(indices = [Index(value = ["nextReviewDate"])])`
+
+2.  **Efficient Queries:**
+    - Select only necessary columns if not all data is needed for a particular view/logic. Create POJOs or use `@ColumnInfo` for partial selections in DAO.
+    - Use `LIMIT` and `OFFSET` for pagination if displaying very large lists, though `LazyColumn` handles UI virtualization well.
+    - Be mindful of `LIKE` queries with wildcards at the beginning (`%query`), as they are less performant. FTS (Full-Text Search) tables can be an option for advanced search.
+
+3.  **Asynchronous Operations:**
+    - All database operations (inserts, updates, deletes, queries) must be performed off the main thread.
+    - Room DAOs with `suspend` functions or returning `Flow` already handle this. Ensure ViewModels call these suspend functions from `viewModelScope`.
+
+4.  **Flow for Reactive Updates:**
+    - Use `kotlinx.coroutines.flow.Flow` for observing data changes from the database. Room supports returning `Flow` directly from DAOs.
+    - This allows the UI to reactively update when underlying data changes without manual refresh logic.
+
+5.  **Transactions:**
+    - Use `@Transaction` in DAOs for operations that involve multiple database modifications to ensure atomicity. For example, if updating a card and also logging a review event.
+
+6.  **Analyze Queries:**
+    - Use Android Studio's "Database Inspector" to inspect the database and run/analyze queries.
+    - Room can output the generated SQL at compile time if configured in build.gradle, which can be useful for verifying query structure.
+        ```gradle
+        // In app/build.gradle.kts, inside android > defaultConfig or a buildType
+        // javaCompileOptions {
+        //     annotationProcessorOptions {
+        //         arguments["room.schemaLocation"] = "$projectDir/schemas".toString()
+        //         arguments["room.expandProjection"] = "true" // To see generated SQL for * queries
+        //     }
+        // }
+        // For KSP:
+        // ksp {
+        //     arg("room.schemaLocation", "$projectDir/schemas")
+        //     arg("room.expandProjection", "true")
+        // }
+        ```
+*/
