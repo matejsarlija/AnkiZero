@@ -1,83 +1,145 @@
 package com.example.ankizero.ui.management
 
-import androidx.lifecycle.ViewModel
+import android.app.Application // Added
+import androidx.lifecycle.AndroidViewModel // Changed from ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ankizero.data.entity.Flashcard
 import com.example.ankizero.data.repository.FlashcardRepository
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import com.example.ankizero.util.AnalyticsHelper // Added
+// Re-import or define SortOption if it was removed from CardManagementScreen.kt
+// For this refactor, assume SortOption is defined here or in a common place.
+// enum class SortOption { Alphabetical, Recent, Difficulty } // Make sure this is the one used
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-class CardManagementViewModel(private val repository: FlashcardRepository) : ViewModel() {
-    data class UiState(
-        val cards: List<Flashcard> = emptyList(),
-        val selected: Set<Long> = emptySet(),
-        val sortMenuExpanded: Boolean = false
+// This is the UiState CardManagementScreen.kt was designed for (or should be adapted to)
+data class CardManagementUiState(
+    val displayedCards: List<Flashcard> = emptyList(),
+    val searchQuery: String = "",
+    val sortOption: SortOption = SortOption.Recent, // Default sort
+    val selectedCardIds: Set<Long> = emptySet(),
+    val isLoading: Boolean = true,
+    val sortMenuExpanded: Boolean = false // If needed for UI, though often local state in screen
+)
+
+class CardManagementViewModel(
+    application: Application, // Added
+    private val repository: FlashcardRepository
+) : AndroidViewModel(application) { // Changed to AndroidViewModel
+
+    private val _searchQuery = MutableStateFlow("")
+    private val _sortOption = MutableStateFlow(SortOption.Recent)
+    private val _selectedCardIds = MutableStateFlow(emptySet<Long>())
+    private val _isLoading = MutableStateFlow(true)
+    private val _sortMenuExpanded = MutableStateFlow(false) // Example if UI needs it from VM
+
+    // Master list from repository
+    private val masterCardsFlow: Flow<List<Flashcard>> = repository.getAllCards()
+
+    val uiState: StateFlow<CardManagementUiState> = combine(
+        masterCardsFlow,
+        _searchQuery,
+        _sortOption,
+        _selectedCardIds,
+        _isLoading,
+        _sortMenuExpanded
+    ) { cards, query, sort, selectedIds, loading, sortMenuExpanded ->
+        _isLoading.value = false // Set loading to false once master list is processed by combine
+        val filtered = if (query.isBlank()) {
+            cards
+        } else {
+            cards.filter {
+                it.frenchWord.contains(query, ignoreCase = true) ||
+                it.englishTranslation.contains(query, ignoreCase = true)
+            }
+        }
+        val sorted = when (sort) {
+            SortOption.Alphabetical -> filtered.sortedBy { it.frenchWord }
+            SortOption.Recent -> filtered.sortedByDescending { it.creationDate }
+            SortOption.Difficulty -> filtered.sortedBy { it.difficulty ?: 3 } // Handle null difficulty
+        }
+        CardManagementUiState(
+            displayedCards = sorted,
+            searchQuery = query,
+            sortOption = sort,
+            selectedCardIds = selectedIds,
+            isLoading = loading, // Reflect initial loading until first combine
+            sortMenuExpanded = sortMenuExpanded
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = CardManagementUiState() // Initial state with isLoading = true
     )
 
-    private val _uiState = MutableStateFlow(UiState())
-    val uiState: StateFlow<UiState> = _uiState.asStateFlow()
-
-    private var allCards: List<Flashcard> = emptyList()
-
-    init {
-        loadCards()
+    fun updateSearchQuery(query: String) {
+        _searchQuery.value = query
+        if (query.isNotBlank()) { // Log only if search term is not blank
+            AnalyticsHelper.logSearchPerformed(getApplication(), query)
+        }
     }
 
-    fun loadCards() {
+    fun updateSortOrder(sortOption: SortOption) {
+        _sortOption.value = sortOption
+        AnalyticsHelper.logSortChanged(getApplication(), sortOption.name)
+        _sortMenuExpanded.value = false // Close menu on selection
+    }
+
+    fun toggleCardSelection(cardId: Long) {
+        val currentSelected = _selectedCardIds.value.toMutableSet()
+        if (currentSelected.contains(cardId)) {
+            currentSelected.remove(cardId)
+        } else {
+            currentSelected.add(cardId)
+        }
+        _selectedCardIds.value = currentSelected
+    }
+
+    fun clearSelections() {
+        _selectedCardIds.value = emptySet()
+    }
+
+    fun deleteSelectedCards() {
         viewModelScope.launch {
-            allCards = repository.getAllFlashcards()
-            _uiState.value = _uiState.value.copy(cards = allCards)
+            val idsToDelete = _selectedCardIds.value.toList()
+            if (idsToDelete.isNotEmpty()) {
+                repository.deleteCards(idsToDelete) // Use new DAO method
+                AnalyticsHelper.logCardDeleted(getApplication(), idsToDelete.size) // Added analytics
+                _selectedCardIds.value = emptySet() // Clear selection
+                // Flow will automatically update displayedCards
+            }
         }
     }
 
-    fun search(query: String) {
-        val filtered = allCards.filter { it.french.contains(query, ignoreCase = true) }
-        _uiState.value = _uiState.value.copy(cards = filtered)
-    }
-
-    fun sort(option: SortOption) {
-        val sorted = when (option) {
-            SortOption.ALPHABETICAL -> allCards.sortedBy { it.french }
-            SortOption.RECENT -> allCards.sortedByDescending { it.id }
-            SortOption.DIFFICULTY -> allCards.sortedBy { it.easeFactor }
+    // Methods for creating/updating cards (called from Edit/Create screens eventually)
+    // These were in the previous version of the ViewModel, so keeping similar logic
+    fun updateCard(card: Flashcard, onComplete: () -> Unit = {}) {
+        viewModelScope.launch {
+            repository.update(card) // Use correct repository method
+            AnalyticsHelper.logCardUpdated(getApplication(), card.id) // Added analytics
+            // Flow will update list, onComplete might be for UI navigation
+            onComplete()
         }
-        _uiState.value = _uiState.value.copy(cards = sorted)
     }
 
+    fun createCard(card: Flashcard, onComplete: () -> Unit = {}) {
+        viewModelScope.launch {
+            val newId = repository.insert(card) // Use correct repository method
+            AnalyticsHelper.logNewCardSaved(getApplication(), "manual_creation") // Pass context and source
+            // If newId is indeed the actual card ID, could use:
+            // AnalyticsHelper.logCardCreated(getApplication(), newId)
+            // Flow will update list, onComplete might be for UI navigation
+            onComplete()
+        }
+    }
+
+    // If sort menu expansion is controlled by screen, this can be removed
     fun setSortMenuExpanded(expanded: Boolean) {
-        _uiState.value = _uiState.value.copy(sortMenuExpanded = expanded)
-    }
-
-    fun toggleSelect(id: Long) {
-        val selected = _uiState.value.selected.toMutableSet()
-        if (selected.contains(id)) selected.remove(id) else selected.add(id)
-        _uiState.value = _uiState.value.copy(selected = selected)
-    }
-
-    fun deleteSelected() {
-        val toDelete = _uiState.value.selected
-        viewModelScope.launch {
-            repository.deleteFlashcards(toDelete.toList())
-            loadCards()
-            _uiState.value = _uiState.value.copy(selected = emptySet())
-        }
-    }
-
-    fun updateCard(card: Flashcard, onComplete: () -> Unit) {
-        viewModelScope.launch {
-            repository.updateFlashcard(card)
-            loadCards()
-            onComplete()
-        }
-    }
-
-    fun createCard(card: Flashcard, onComplete: () -> Unit) {
-        viewModelScope.launch {
-            repository.insertFlashcard(card)
-            loadCards()
-            onComplete()
-        }
+        _sortMenuExpanded.value = expanded
     }
 }
+// Ensure SortOption enum is defined/accessible. If it was in CardManagementScreen.kt,
+// it should be moved to a common location or duplicated in the ViewModel's package/file
+// for clarity if not shared. For this overwrite, I'm assuming it's accessible.
+// Example:
+enum class SortOption { Alphabetical, Recent, Difficulty }

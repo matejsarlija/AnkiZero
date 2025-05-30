@@ -7,8 +7,8 @@ plugins {
     alias(libs.plugins.kotlin.android)
     id("com.google.devtools.ksp")
     alias(libs.plugins.compose.compiler)
-    // TODO: Apply Google Services plugin here if applied at project level
-    // id("com.google.gms.google-services")
+    alias(libs.plugins.google.services) // Apply Google Services plugin
+    alias(libs.plugins.firebase.crashlytics) // Apply Firebase Crashlytics plugin
 }
 
 android {
@@ -68,6 +68,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.material.icons.extended)
+    implementation(libs.androidx.work.runtime.ktx) // Added WorkManager
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test) // Added
@@ -79,8 +80,8 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 
-    // TODO: Add Firebase BOM and Crashlytics dependencies
-    // implementation(platform("com.google.firebase:firebase-bom:x.y.z"))
-    // implementation("com.google.firebase:firebase-crashlytics-ktx")
-    // implementation("com.google.firebase:firebase-analytics-ktx") // Firebase Analytics
+    // Firebase
+    implementation(platform(libs.firebase.bom)) // Import the BoM
+    implementation(libs.firebase.analytics.ktx)
+    implementation(libs.firebase.crashlytics.ktx)
 }

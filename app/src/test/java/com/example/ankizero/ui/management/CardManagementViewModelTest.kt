@@ -1,39 +1,66 @@
 package com.example.ankizero.ui.management
 
 import com.example.ankizero.data.entity.Flashcard
+import com.example.ankizero.data.repository.FlashcardRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.*
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 import java.time.LocalDate
 import java.time.ZoneOffset
+import kotlin.system.measureTimeMillis
 
 @ExperimentalCoroutinesApi
 class CardManagementViewModelTest {
 
-    private val testDispatcher = UnconfinedTestDispatcher()
+    private val testDispatcher = UnconfinedTestDispatcher() // Or StandardTestDispatcher for more control
 
-    // Test data
-    private val testFlashcards = listOf(
-        Flashcard(id = 1, frenchWord = "Bonjour", englishTranslation = "Hello", creationDate = LocalDate.now().minusDays(2).toEpochSecond(ZoneOffset.UTC), difficulty = 3, nextReviewDate = 0),
-        Flashcard(id = 2, frenchWord = "Au revoir", englishTranslation = "Goodbye", creationDate = LocalDate.now().minusDays(1).toEpochSecond(ZoneOffset.UTC), difficulty = 1, nextReviewDate = 0),
-        Flashcard(id = 3, frenchWord = "Merci", englishTranslation = "Thank you", creationDate = LocalDate.now().toEpochSecond(ZoneOffset.UTC), difficulty = 5, nextReviewDate = 0),
-        Flashcard(id = 4, frenchWord = "Oui", englishTranslation = "Yes", creationDate = LocalDate.now().minusDays(3).toEpochSecond(ZoneOffset.UTC), difficulty = 2, nextReviewDate = 0),
-        Flashcard(id = 5, frenchWord = "Non", englishTranslation = "No", creationDate = LocalDate.now().minusDays(4).toEpochSecond(ZoneOffset.UTC), difficulty = 4, nextReviewDate = 0)
-    )
+    private lateinit var viewModel: CardManagementViewModel
+    private lateinit var mockRepository: FlashcardRepository
+    private lateinit var initialMockCards: List<Flashcard>
+    private lateinit var mockCardsFlow: MutableStateFlow<List<Flashcard>>
 
-    // Helper to create ViewModel and override its initial data for tests
-    // This is not possible with current ViewModel which loads data in init block from its own source.
-    // These tests will rely on the default placeholder data in CardManagementViewModel.
-    // For more robust tests, the ViewModel should allow injecting a list of cards or a repository.
+
+    // Helper to create Flashcard instances for tests
+    private fun createTestFlashcard(
+        id: Long,
+        frenchWord: String = "French $id",
+        englishTranslation: String = "English $id",
+        creationDate: Long = System.currentTimeMillis() - (id * 1000 * 60 * 60 * 24), // Stagger creation dates
+        difficulty: Int? = ((id % 5) + 1).toInt(),
+        nextReviewDate: Long = System.currentTimeMillis(),
+        intervalInDays: Double = 1.0,
+        easeFactor: Double = 2.5
+    ): Flashcard {
+        return Flashcard(id, frenchWord, englishTranslation, null, null, null, creationDate, nextReviewDate, intervalInDays, easeFactor, difficulty, null, 0)
+    }
+
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
+        mockRepository = mock()
+
+        // Setup initial mock data and the flow that emits it
+        initialMockCards = listOf(
+            createTestFlashcard(id = 1, frenchWord = "Bonjour", englishTranslation = "Hello", creationDate = LocalDate.now().minusDays(2).toEpochSecond(ZoneOffset.UTC) * 1000, difficulty = 3),
+            createTestFlashcard(id = 2, frenchWord = "Au revoir", englishTranslation = "Goodbye", creationDate = LocalDate.now().minusDays(1).toEpochSecond(ZoneOffset.UTC) * 1000, difficulty = 1),
+            createTestFlashcard(id = 3, frenchWord = "Merci", englishTranslation = "Thank you", creationDate = LocalDate.now().toEpochSecond(ZoneOffset.UTC) * 1000, difficulty = 5)
+        )
+        mockCardsFlow = MutableStateFlow(initialMockCards)
+        whenever(mockRepository.getAllCards()).thenReturn(mockCardsFlow.asStateFlow())
+
+        viewModel = CardManagementViewModel(mockRepository)
     }
 
     @After
@@ -43,163 +70,100 @@ class CardManagementViewModelTest {
 
     @Test
     fun `initial state loads cards with default sort (Recent)`() = runTest {
-        val viewModel = CardManagementViewModel() // Uses its own placeholder data
-        val uiState = viewModel.uiState.first { !it.isLoading }
+        val uiState = viewModel.uiState.first { !it.isLoading } // Wait for initial combine
 
         assertFalse(uiState.displayedCards.isEmpty())
-        // Default sort is Recent. Check if the first card is the most recent one from placeholder.
-        // Placeholder data in CardManagementViewModel:
-        // id = index.toLong(), creationDate = LocalDate.now().minusDays(index.toLong() % 7)
-        // Card with index 0 or 7 or 14 (id 0, 7, 14) would be most recent (creationDate = today)
-        // Card with index 1 or 8 or 15 (id 1, 8, 15) would be created yesterday
-        val firstDisplayedCardCreationDate = uiState.displayedCards.first().creationDate
-        val secondDisplayedCardCreationDate = uiState.displayedCards.getOrNull(1)?.creationDate
-
-        if(secondDisplayedCardCreationDate != null) {
-            assertTrue("First card should be more recent or equal to the second.", firstDisplayedCardCreationDate >= secondDisplayedCardCreationDate)
+        assertEquals(SortOption.Recent, uiState.sortOption)
+        // Check if sorted by creationDate descending
+        for (i in 0 until uiState.displayedCards.size - 1) {
+            assertTrue(uiState.displayedCards[i].creationDate >= uiState.displayedCards[i+1].creationDate)
         }
-        assertEquals(SortOption.Recent, uiState.sortOption) // Default sort option
     }
 
     @Test
-    fun `updateSearchQuery filters cards correctly (french word)`() = runTest {
-        val viewModel = CardManagementViewModel()
+    fun `updateSearchQuery filters cards correctly`() = runTest {
         viewModel.uiState.first { !it.isLoading } // Ensure initial load
 
-        viewModel.updateSearchQuery("Mot Français 1") // Specific to placeholder data structure
-        val uiState = viewModel.uiState.value
+        viewModel.updateSearchQuery("Bonjour")
+        var displayedCards = viewModel.uiState.value.displayedCards
+        assertEquals(1, displayedCards.size)
+        assertEquals("Bonjour", displayedCards.first().frenchWord)
 
-        assertTrue(uiState.displayedCards.isNotEmpty())
-        uiState.displayedCards.forEach {
-            assertTrue(it.frenchWord.contains("Mot Français 1", ignoreCase = true))
-        }
-        // Check a card that contains "Mot Français 1" (e.g. "Mot Français 10", "Mot Français 11", ...)
-        val card10 = uiState.displayedCards.find { it.id == 9L } // id is index
-        val card1 = uiState.displayedCards.find { it.id == 0L }
-        assertNotNull(card1)
-        assertNotNull(card10)
+        viewModel.updateSearchQuery("thank") // Case insensitive, part of word
+        displayedCards = viewModel.uiState.value.displayedCards
+        assertEquals(1, displayedCards.size)
+        assertEquals("Merci", displayedCards.first().frenchWord)
 
-    }
-
-    @Test
-    fun `updateSearchQuery filters cards correctly (english word, case insensitive)`() = runTest {
-        val viewModel = CardManagementViewModel()
-        viewModel.uiState.first { !it.isLoading } // Ensure initial load
-
-        viewModel.updateSearchQuery("word 2") // "English Word 2"
-        val uiState = viewModel.uiState.value
-
-        assertTrue(uiState.displayedCards.isNotEmpty())
-        assertEquals(1, uiState.displayedCards.size) // "English Word 2" (id=1)
-        assertEquals(1L, uiState.displayedCards.first().id)
-    }
-
-    @Test
-    fun `updateSearchQuery with blank query shows all cards`() = runTest {
-        val viewModel = CardManagementViewModel()
-        viewModel.uiState.first { !it.isLoading } // Ensure initial load
-
-        viewModel.updateSearchQuery("Filter") // Apply some filter
-        assertNotEquals(viewModel.uiState.value.displayedCards.size, 20) // Assuming default 20 master cards
-
-        viewModel.updateSearchQuery("") // Clear filter
-        assertEquals(20, viewModel.uiState.value.displayedCards.size) // All cards shown
+        viewModel.updateSearchQuery("") // Clear search
+        displayedCards = viewModel.uiState.value.displayedCards
+        assertEquals(initialMockCards.size, displayedCards.size)
     }
 
     @Test
     fun `updateSortOrder sorts Alphabetical correctly`() = runTest {
-        val viewModel = CardManagementViewModel()
         viewModel.uiState.first { !it.isLoading }
-
         viewModel.updateSortOrder(SortOption.Alphabetical)
         val cards = viewModel.uiState.value.displayedCards
-
-        assertTrue(cards.isNotEmpty())
-        for (i in 0 until cards.size - 1) {
-            assertTrue(cards[i].frenchWord <= cards[i+1].frenchWord)
-        }
         assertEquals(SortOption.Alphabetical, viewModel.uiState.value.sortOption)
-    }
-
-    @Test
-    fun `updateSortOrder sorts Recent correctly`() = runTest {
-        val viewModel = CardManagementViewModel()
-        viewModel.uiState.first { !it.isLoading }
-
-        viewModel.updateSortOrder(SortOption.Recent) // Default, but test explicitly
-        val cards = viewModel.uiState.value.displayedCards
-
-        assertTrue(cards.isNotEmpty())
-        for (i in 0 until cards.size - 1) {
-            assertTrue(cards[i].creationDate >= cards[i+1].creationDate)
-        }
-        assertEquals(SortOption.Recent, viewModel.uiState.value.sortOption)
+        assertEquals("Au revoir", cards[0].frenchWord)
+        assertEquals("Bonjour", cards[1].frenchWord)
+        assertEquals("Merci", cards[2].frenchWord)
     }
 
     @Test
     fun `updateSortOrder sorts Difficulty correctly`() = runTest {
-        val viewModel = CardManagementViewModel()
         viewModel.uiState.first { !it.isLoading }
-
         viewModel.updateSortOrder(SortOption.Difficulty)
         val cards = viewModel.uiState.value.displayedCards
-
-        assertTrue(cards.isNotEmpty())
-        for (i in 0 until cards.size - 1) {
-            // Placeholder difficulty: (index % 5) + 1. Lower is more difficult if not inverted.
-            // ViewModel sorts by `it.difficulty ?: 3`. Lower value = higher priority.
-            assertTrue((cards[i].difficulty ?: 3) <= (cards[i+1].difficulty ?: 3))
-        }
         assertEquals(SortOption.Difficulty, viewModel.uiState.value.sortOption)
+        assertEquals(1, cards[0].difficulty) // Au revoir
+        assertEquals(3, cards[1].difficulty) // Bonjour
+        assertEquals(5, cards[2].difficulty) // Merci
     }
+
 
     @Test
     fun `toggleCardSelection updates selectedCardIds`() = runTest {
-        val viewModel = CardManagementViewModel()
         viewModel.uiState.first { !it.isLoading }
+        val cardToSelect = initialMockCards.first()
 
-        val cardIdToSelect = viewModel.uiState.value.displayedCards.first().id
+        viewModel.toggleCardSelection(cardToSelect.id)
+        assertTrue(viewModel.uiState.value.selectedCardIds.contains(cardToSelect.id))
 
-        viewModel.toggleCardSelection(cardIdToSelect)
-        assertTrue(viewModel.uiState.value.selectedCardIds.contains(cardIdToSelect))
-
-        viewModel.toggleCardSelection(cardIdToSelect) // Toggle off
-        assertFalse(viewModel.uiState.value.selectedCardIds.contains(cardIdToSelect))
+        viewModel.toggleCardSelection(cardToSelect.id) // Toggle off
+        assertFalse(viewModel.uiState.value.selectedCardIds.contains(cardToSelect.id))
     }
 
     @Test
     fun `clearSelections clears selectedCardIds`() = runTest {
-        val viewModel = CardManagementViewModel()
         viewModel.uiState.first { !it.isLoading }
-        val cardIdToSelect = viewModel.uiState.value.displayedCards.first().id
-
-        viewModel.toggleCardSelection(cardIdToSelect)
-        assertTrue(viewModel.uiState.value.selectedCardIds.isNotEmpty())
+        val cardToSelect = initialMockCards.first()
+        viewModel.toggleCardSelection(cardToSelect.id) // Select one
 
         viewModel.clearSelections()
         assertTrue(viewModel.uiState.value.selectedCardIds.isEmpty())
     }
 
     @Test
-    fun `deleteSelectedCards removes cards and clears selection`() = runTest {
-        val viewModel = CardManagementViewModel()
-        viewModel.uiState.first { !it.isLoading } // initial load
+    fun `deleteSelectedCards calls repository and clears selection`() = runTest {
+        viewModel.uiState.first { !it.isLoading }
+        val cardToDelete1 = initialMockCards[0]
+        val cardToDelete2 = initialMockCards[1]
 
-        val initialCardCount = viewModel.uiState.value.displayedCards.size
-        assertTrue(initialCardCount > 0)
-
-        val cardToSelect1 = viewModel.uiState.value.displayedCards[0].id
-        val cardToSelect2 = viewModel.uiState.value.displayedCards[1].id
-
-        viewModel.toggleCardSelection(cardToSelect1)
-        viewModel.toggleCardSelection(cardToSelect2)
+        viewModel.toggleCardSelection(cardToDelete1.id)
+        viewModel.toggleCardSelection(cardToDelete2.id)
         assertEquals(2, viewModel.uiState.value.selectedCardIds.size)
 
         viewModel.deleteSelectedCards()
+        advanceUntilIdle() // For the launch block in deleteSelectedCards
 
-        assertEquals(initialCardCount - 2, viewModel.uiState.value.displayedCards.size)
+        verify(mockRepository).deleteCards(listOf(cardToDelete1.id, cardToDelete2.id))
         assertTrue(viewModel.uiState.value.selectedCardIds.isEmpty())
-        assertNull(viewModel.uiState.value.displayedCards.find { it.id == cardToSelect1 })
-        assertNull(viewModel.uiState.value.displayedCards.find { it.id == cardToSelect2 })
+
+        // Simulate repository updating the main flow
+        mockCardsFlow.value = listOf(initialMockCards[2]) // Only "Merci" should remain
+        val finalCards = viewModel.uiState.value.displayedCards
+        assertEquals(1, finalCards.size)
+        assertEquals("Merci", finalCards.first().frenchWord)
     }
 }

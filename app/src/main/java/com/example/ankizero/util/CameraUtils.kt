@@ -1,12 +1,14 @@
 package com.example.ankizero.util
 
 import android.Manifest
+import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.core.content.ContextCompat
+// import android.util.Log // Replaced by AppLogger
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -30,12 +32,13 @@ object CameraUtils {
 
     fun takePhoto(
         imageCapture: ImageCapture?,
-        context: Context, // Needed for main executor and file creation
-        executor: Executor, // Executor for image capture callbacks
+        context: Context,
+        executor: Executor,
         onImageCaptured: (Uri) -> Unit,
         onError: (ImageCaptureException) -> Unit
     ) {
         val imageCaptureInstance = imageCapture ?: run {
+            AppLogger.e("CameraUtils", "ImageCapture instance is null.")
             onError(ImageCaptureException(ImageCapture.ERROR_INVALID_CAMERA, "ImageCapture is null", null))
             return
         }
@@ -49,10 +52,12 @@ object CameraUtils {
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {
                     val savedUri = output.savedUri ?: Uri.fromFile(photoFile)
+                    AppLogger.d("CameraUtils", "Photo capture succeeded: $savedUri")
                     onImageCaptured(savedUri)
                 }
 
                 override fun onError(exc: ImageCaptureException) {
+                    AppLogger.e("CameraUtils", "Photo capture failed: ${exc.message}", exc)
                     onError(exc)
                 }
             }

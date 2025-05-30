@@ -1,94 +1,100 @@
 package com.example.ankizero.data.repository
 
-import com.example.ankizero.data.dao.FlashcardDao
+import com.example.ankizero.data.dao.FlashCardDao // Updated import
 import com.example.ankizero.data.entity.Flashcard
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
-import java.time.ZoneOffset
+import java.time.ZoneOffset // Kept for getCardsDueToday
 
 /**
  * Repository for managing Flashcard data.
  * Provides methods for accessing and manipulating flashcards.
+ * This class acts as a mediator between the DAOs (data sources) and ViewModels.
  */
-class FlashcardRepository(private val flashcardDao: FlashcardDao) {
+class FlashcardRepository(private val flashCardDao: FlashCardDao) { // Updated DAO type
 
     /**
-     * Get all flashcards, ordered by creation date (newest first).
+     * Get all flashcards, ordered by French word (alphabetically).
+     * Mirrors FlashCardDao.getAllCards().
      */
-    fun getAllFlashcards(): Flow<List<Flashcard>> {
-        return flashcardDao.getAllFlashcards()
+    fun getAllCards(): Flow<List<Flashcard>> {
+        return flashCardDao.getAllCards()
     }
 
     /**
-     * Get flashcards that are due for review today.
+     * Get flashcards that are due for review on or before the current date.
+     * The current date is determined at the time of the call.
      */
-    fun getCardsDueToday(): Flow<List<Flashcard>> {
-        val currentTime = LocalDate.now().atStartOfDay().toEpochSecond(ZoneOffset.UTC)
-        return flashcardDao.getCardsDueToday(currentTime)
+    fun getDueCards(): Flow<List<Flashcard>> { // Renamed from getCardsDueToday for clarity on when "today" is determined
+        val currentDate = LocalDate.now().atStartOfDay().toEpochSecond(ZoneOffset.UTC)
+        return flashCardDao.getDueCards(currentDate)
     }
 
     /**
-     * Get the count of flashcards due for review today.
+     * Get the count of flashcards due for review on or before the current date.
      */
     fun getDueCardsCount(): Flow<Int> {
-        val currentTime = LocalDate.now().atStartOfDay().toEpochSecond(ZoneOffset.UTC)
-        return flashcardDao.getDueCardsCount(currentTime)
+        val currentDate = LocalDate.now().atStartOfDay().toEpochSecond(ZoneOffset.UTC)
+        return flashCardDao.getDueCardsCount(currentDate)
     }
 
     /**
-     * Get a flashcard by its ID.
+     * Get a flashcard by its ID, observing changes.
      */
-    suspend fun getFlashcardById(id: Long): Flashcard? {
-        return flashcardDao.getFlashcardById(id)
+    fun getCardById(id: Long): Flow<Flashcard?> { // Updated signature
+        return flashCardDao.getCardById(id)
     }
 
     /**
      * Insert a new flashcard.
      */
-    suspend fun insertFlashcard(flashcard: Flashcard): Long {
-        return flashcardDao.insertFlashcard(flashcard)
+    suspend fun insert(flashcard: Flashcard): Long { // Renamed
+        return flashCardDao.insert(flashcard)
     }
 
     /**
      * Update an existing flashcard.
      */
-    suspend fun updateFlashcard(flashcard: Flashcard) {
-        flashcardDao.updateFlashcard(flashcard)
+    suspend fun update(flashcard: Flashcard) { // Renamed
+        flashCardDao.update(flashcard)
     }
 
     /**
      * Delete a flashcard.
      */
-    suspend fun deleteFlashcard(flashcard: Flashcard) {
-        flashcardDao.deleteFlashcard(flashcard)
+    suspend fun delete(flashcard: Flashcard) { // Renamed
+        flashCardDao.delete(flashcard)
     }
 
     /**
-     * Delete multiple flashcards.
+     * Delete multiple flashcards by their IDs.
+     */
+    suspend fun deleteCards(cardIds: List<Long>) { // Added method
+        flashCardDao.deleteCards(cardIds)
+    }
+
+    /**
+     * Delete multiple flashcards using a list of Flashcard objects.
+     * (Kept from existing repository, useful if objects are already fetched)
      */
     suspend fun deleteFlashcards(flashcards: List<Flashcard>) {
-        flashcardDao.deleteFlashcards(flashcards)
+        flashCardDao.deleteFlashcards(flashcards)
     }
 
+
     /**
-     * Search for flashcards by query.
+     * Search for flashcards by query (matching French or English words).
      */
     fun searchFlashcards(query: String): Flow<List<Flashcard>> {
-        return flashcardDao.searchFlashcards(query)
+        return flashCardDao.searchFlashcards(query)
     }
 
     /**
      * Get flashcards ordered by difficulty.
+     * (Kept from existing repository)
      */
     fun getFlashcardsByDifficulty(): Flow<List<Flashcard>> {
-        return flashcardDao.getFlashcardsByDifficulty()
-    }
-
-    /**
-     * Get flashcards ordered alphabetically.
-     */
-    fun getFlashcardsAlphabetically(): Flow<List<Flashcard>> {
-        return flashcardDao.getFlashcardsAlphabetically()
+        return flashCardDao.getFlashcardsByDifficulty()
     }
 
     /**
@@ -98,35 +104,36 @@ class FlashcardRepository(private val flashcardDao: FlashcardDao) {
      * @return The updated flashcard
      */
     suspend fun processReview(flashcard: Flashcard, remembered: Boolean): Flashcard {
-        val currentTime = System.currentTimeMillis() / 1000 // Current time in seconds
+        val currentTimeSeconds = System.currentTimeMillis() / 1000 // Current time in seconds
+
         val updatedFlashcard = if (remembered) {
             // User remembered the card - increase interval
-            val newInterval = (flashcard.interval * 1.8f).toInt()
-            val newEaseFactor = (flashcard.easeFactor + 0.1f).coerceAtMost(2.5f)
-            val newNextReviewDate = currentTime + (newInterval * 86400) // days to seconds
+            // Ensure calculations use Double for intervalInDays and easeFactor
+            val newInterval = flashcard.intervalInDays * 1.8
+            val newEaseFactor = (flashcard.easeFactor + 0.1).coerceAtMost(2.5) // Max easeFactor 2.5
 
             flashcard.copy(
-                interval = newInterval,
+                intervalInDays = newInterval,
                 easeFactor = newEaseFactor,
-                lastReviewed = currentTime,
-                nextReviewDate = newNextReviewDate,
+                lastReviewed = System.currentTimeMillis(), // Use ms for consistency with creationDate
+                nextReviewDate = System.currentTimeMillis() + (newInterval * 24 * 60 * 60 * 1000).toLong(), // interval in ms
                 reviewCount = flashcard.reviewCount + 1
             )
         } else {
             // User didn't remember - reset interval
-            val newEaseFactor = (flashcard.easeFactor - 0.2f).coerceAtLeast(1.3f)
-            val newNextReviewDate = currentTime + 86400 // Review tomorrow (1 day in seconds)
+            val newEaseFactor = (flashcard.easeFactor - 0.2).coerceAtLeast(1.3) // Min easeFactor 1.3
+            val newInterval = 1.0 // Reset interval to 1 day
 
             flashcard.copy(
-                interval = 1,
+                intervalInDays = newInterval,
                 easeFactor = newEaseFactor,
-                lastReviewed = currentTime,
-                nextReviewDate = newNextReviewDate,
+                lastReviewed = System.currentTimeMillis(),
+                nextReviewDate = System.currentTimeMillis() + (24 * 60 * 60 * 1000), // Review tomorrow (1 day in ms)
                 reviewCount = flashcard.reviewCount + 1
             )
         }
 
-        flashcardDao.updateFlashcard(updatedFlashcard)
+        flashCardDao.update(updatedFlashcard) // Use renamed update method
         return updatedFlashcard
     }
 }

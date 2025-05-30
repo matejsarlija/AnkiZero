@@ -24,9 +24,12 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text // Renamed M3Text to Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue // Added for navBackStackEntryAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.material3.Button // For Test Crash button
+import androidx.compose.foundation.layout.Column // For layout with Test Crash button
+import com.example.ankizero.util.AppLogger // For logging the crash simulation
 // Removed ImageVector import as it's part of Icons
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy // Added
@@ -34,9 +37,10 @@ import androidx.navigation.NavGraph.Companion.findStartDestination // Added
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState // Added
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.ankizero.util.AnalyticsHelper // Added for screen view logging
 import com.example.ankizero.data.database.AppDatabase
 import com.example.ankizero.data.repository.FlashcardRepository
 import com.example.ankizero.ui.theme.AnkiZeroTheme
@@ -83,7 +87,7 @@ class MainActivity : ComponentActivity() {
         // In class scope: private lateinit var firebaseAnalytics: FirebaseAnalytics
         // In onCreate: firebaseAnalytics = Firebase.analytics
 
-        createNotificationChannel() // Call channel creation
+        // createNotificationChannel() // Moved to AnkiZeroApplication
 
         val database = AppDatabase.getDatabase(applicationContext)
         val repository = FlashcardRepository(database.flashcardDao())
@@ -94,20 +98,49 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    AnkiZeroApp(repository)
+                    AnkiZeroApp(applicationContext, repository) // Pass applicationContext
                 }
             }
+        }
+
+        // Conceptual Deep Link Handling
+        val destinationRoute = intent.getStringExtra("destination_route")
+        if (destinationRoute != null) {
+            com.example.ankizero.util.AppLogger.i("MainActivity", "Deep link intent received for route: $destinationRoute")
+            // Actual navigation would require NavController to be available and NavHost set up.
+            // This might be handled by passing intent to AnkiZeroApp or using a LaunchedEffect in NavHost.
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class) // Added for Scaffold if not already present
 @Composable
-fun AnkiZeroApp(repository: FlashcardRepository) {
+fun AnkiZeroApp(applicationContext: Context, repository: FlashcardRepository) { // Added applicationContext
     val navController = rememberNavController()
-    // val currentRoute = navController.currentBackStackEntryFlow.collectAsState(initial = navController.currentBackStackEntry?.destination?.route) // Replaced by currentBackStackEntryAsState
+
+    // Screen View Logging
+    LaunchedEffect(navController) { // Use LaunchedEffect to add listener once
+        navController.addOnDestinationChangedListener { _, destination, _ ->
+            val screenName = destination.route ?: "unknown_screen"
+            AnalyticsHelper.logScreenView(applicationContext, screenName)
+        }
+    }
 
     Scaffold(
+        topBar = { // Adding a simple TopAppBar for the test crash button if needed, or place button directly in Column
+            if (BuildConfig.DEBUG) { // Only show Test Crash button in debug builds
+                // This is not ideal for a real topBar, just for quick access
+                // A better place might be a debug drawer or specific debug screen
+                Row(modifier = Modifier.fillMaxWidth().padding(4.dp), horizontalArrangement = Arrangement.Center) {
+                    Button(onClick = {
+                        AppLogger.w("TestCrash", "Simulating a native crash via an unhandled exception.")
+                        throw RuntimeException("Test Crash from AnkiZero App via Button")
+                    }) {
+                        Text("Test Crash (DEBUG ONLY)")
+                    }
+                }
+            }
+        },
         bottomBar = {
             NavigationBar {
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -117,7 +150,7 @@ fun AnkiZeroApp(repository: FlashcardRepository) {
                         selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
                         onClick = {
                             if (screen.route == Screen.OcrScan) {
-                                Log.d("Navigation", "OCR Scan clicked - Placeholder")
+                                com.example.ankizero.util.AppLogger.d("Navigation", "OCR Scan clicked - Placeholder")
                                 // Potentially show a Snackbar or Toast for placeholder
                             } else {
                                 navController.navigate(screen.route) {
@@ -142,15 +175,17 @@ fun AnkiZeroApp(repository: FlashcardRepository) {
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(Screen.Flashcards) { // Use constant
+                val application = LocalContext.current.applicationContext as Application
                 val viewModel: com.example.ankizero.ui.card.FlashcardViewModel = viewModel(
-                    factory = com.example.ankizero.ui.card.FlashcardViewModelFactory(repository)
+                    factory = com.example.ankizero.ui.card.FlashcardViewModelFactory(application, repository)
                 )
                 FlashcardScreen(viewModel = viewModel)
             }
 
             composable(Screen.Management) { // Use constant
+                val application = LocalContext.current.applicationContext as Application
                 val viewModel: com.example.ankizero.ui.management.CardManagementViewModel = viewModel(
-                    factory = com.example.ankizero.ui.management.CardManagementViewModelFactory(repository)
+                    factory = com.example.ankizero.ui.management.CardManagementViewModelFactory(application, repository)
                 )
                 CardManagementScreen(
                     viewModel = viewModel,
@@ -207,22 +242,4 @@ fun AnkiZeroApp(repository: FlashcardRepository) {
 // Removed local NavItem data class as AppBottomNavItem is used.
 // data class NavItem(val route: String, val icon: ImageVector, val label: String)
 
-    private fun createNotificationChannel() {
-        // Create the NotificationChannel, but only on API 26+ because
-        // the NotificationChannel class is new and not in the support library
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val name = getString(R.string.notification_channel_name)
-            val descriptionText = getString(R.string.notification_channel_description)
-            val importance = NotificationManager.IMPORTANCE_DEFAULT
-            val channel = NotificationChannel(STUDY_REMINDERS_CHANNEL_ID, name, importance).apply {
-                description = descriptionText
-            }
-            // Register the channel with the system
-            val notificationManager: NotificationManager =
-                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
-            Log.d("MainActivity", "Notification channel '$STUDY_REMINDERS_CHANNEL_ID' created.")
-        } else {
-            Log.d("MainActivity", "Notification channel creation not needed for API < 26.")
-        }
-    }
+// Removed createNotificationChannel method as it's now in AnkiZeroApplication.kt

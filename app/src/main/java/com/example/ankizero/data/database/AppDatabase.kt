@@ -5,7 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
-import com.example.ankizero.data.dao.FlashcardDao
+import com.example.ankizero.data.dao.FlashCardDao // Changed to FlashCardDao
 import com.example.ankizero.data.entity.Flashcard
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -22,7 +22,7 @@ abstract class AppDatabase : RoomDatabase() {
     /**
      * Get the DAO for Flashcard entities.
      */
-    abstract fun flashcardDao(): FlashcardDao
+    abstract fun flashCardDao(): FlashCardDao // Changed to FlashCardDao
 
     companion object {
         @Volatile
@@ -49,6 +49,7 @@ abstract class AppDatabase : RoomDatabase() {
                             }
                         }
                     })
+                    .fallbackToDestructiveMigration() // Added
                     .build()
 
                 INSTANCE = instance

@@ -57,8 +57,8 @@ data class Rect(val left: Float, val top: Float, val right: Float, val bottom: F
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun OcrScreen(
-    viewModel: OcrViewModel = viewModel(factory = OcrViewModelFactory(LocalContext.current.applicationContext as Application))
+fun OcrScreen( // Removed default ViewModel instantiation
+    viewModel: OcrViewModel
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -170,12 +170,12 @@ fun OcrScreen(
                                     viewModel.setImageUri(uri)
                                     viewModel.processImage(uri)
                                 },
-                                onError = { error ->
-                                    Log.e("OcrScreen", "Photo capture error: $error")
-                                    // Consider viewModel.setErrorMessage("Photo capture failed: ${error.message}")
+                                onError = { exception -> // Renamed error to exception for clarity
+                                    com.example.ankizero.util.AppLogger.e("OcrScreen", "Photo capture error", exception) // Use AppLogger
+                                    viewModel.setImageCaptureFailed(exception.message ?: "Unknown photo capture error")
                                 }
                             )
-                        } ?: Log.e("OcrScreen", "ImageCapture use case not available.")
+                        } ?: com.example.ankizero.util.AppLogger.e("OcrScreen", "ImageCapture use case not available.") // Use AppLogger
                     }, modifier = Modifier.size(64.dp)) {
                         Icon(Icons.Filled.Camera, contentDescription = "Capture photo for OCR", modifier = Modifier.fillMaxSize()) // CD Updated
                     }
@@ -236,7 +236,7 @@ fun CameraPreviewView( // Renamed from CameraPreview to avoid conflict if any ot
                     cameraProvider.unbindAll()
                     cameraProvider.bindToLifecycle(lifecycleOwner, cameraSelector, preview, imageCapture)
                 } catch (e: Exception) {
-                    Log.e("OcrScreen", "CameraX binding failed", e)
+                    com.example.ankizero.util.AppLogger.e("OcrScreen.CameraPreviewView", "CameraX binding failed", e)
                 }
             }, ContextCompat.getMainExecutor(ctx))
             previewView

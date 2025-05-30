@@ -13,11 +13,12 @@ import com.example.ankizero.util.AppLogger // Added AppLogger
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.IOException // Added for InputImage.fromFilePath exception
 
-// ML Kit - uncomment when ready to integrate
-// import com.google.mlkit.vision.common.InputImage
-// import com.google.mlkit.vision.text.TextRecognition
-// import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+// ML Kit imports
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions // Using latin options
 
 data class OcrUiState(
     val imageUri: Uri? = null,
@@ -27,9 +28,12 @@ data class OcrUiState(
     val errorMessage: String? = null // For showing errors from ML Kit or other operations
 )
 
-class OcrViewModel(application: Application) : AndroidViewModel(application) {
+class OcrViewModel(
+    application: Application,
+    private val repository: com.example.ankizero.data.repository.FlashcardRepository // Added repository
+) : AndroidViewModel(application) {
 
-    private val TAG = "OcrViewModel" // Added TAG
+    private val TAG = "OcrViewModel"
 
     private val _uiState = MutableStateFlow(OcrUiState())
     val uiState: StateFlow<OcrUiState> = _uiState.asStateFlow()
@@ -49,56 +53,46 @@ class OcrViewModel(application: Application) : AndroidViewModel(application) {
 
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
         viewModelScope.launch {
-            AppLogger.d(TAG, "Starting image processing for URI: $uri") // Replaced
-            // ** ML Kit Text Recognition (Conceptual Implementation) **
+            AppLogger.d(TAG, "Starting image processing for URI: $uri")
+            val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+            val image: InputImage
             try {
-                // val inputImage = InputImage.fromFilePath(context, uri)
-                // val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-                //
-                // recognizer.process(inputImage)
-                // .addOnSuccessListener { visionText ->
-                // Log.d("OcrViewModel", "ML Kit Success. Detected text: ${visionText.text}")
-                // _uiState.update {
-                // it.copy(
-                // detectedText = visionText.text,
-                // isLoading = false,
-                // showEditDialog = true // Show dialog on successful recognition
-                // )
-                // }
-                // }
-                // .addOnFailureListener { e ->
-                // Log.e("OcrViewModel", "ML Kit Failure", e)
-                // _uiState.update {
-                // it.copy(
-                // errorMessage = "Failed to recognize text: ${e.localizedMessage}",
-                // isLoading = false
-                // )
-                // }
-                // }
-
-                // STUBBED IMPLEMENTATION:
-                kotlinx.coroutines.delay(1500) // Simulate network/processing delay
-                val simulatedText = "Simulated recognized text for $uri:\nBonjour Monde!\nAnkiZero OCR."
-                AppLogger.d(TAG, "Stubbed processing complete. Text: $simulatedText") // Replaced
+                image = InputImage.fromFilePath(context, uri)
+            } catch (e: IOException) {
+                AppLogger.e(TAG, "Failed to create InputImage from URI: $uri", e)
+                com.example.ankizero.util.GlobalErrorHandler.reportError(e, "ML Kit InputImage creation failed for URI: $uri")
                 _uiState.update {
                     it.copy(
-                        detectedText = simulatedText,
                         isLoading = false,
-                        showEditDialog = true
+                        errorMessage = "Failed to load image: ${e.message}"
                     )
                 }
-                AnalyticsHelper.logOcrUsed() // Added analytics call for successful OCR
-
-            } catch (e: Exception) {
-                // Log.e("OcrViewModel", "Error preparing InputImage or during processing", e) // Replaced by GlobalErrorHandler
-                com.example.ankizero.util.GlobalErrorHandler.reportError(e, "OCR image processing failed")
-                _uiState.update {
-                    it.copy(
-                        errorMessage = "Error during image processing: ${e.localizedMessage}",
-                        isLoading = false
-                    )
-                }
+                return@launch // Exit coroutine
             }
+
+            recognizer.process(image)
+                .addOnSuccessListener { visionText ->
+                    AppLogger.i(TAG, "ML Kit text recognition success. Detected text length: ${visionText.text.length}")
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            detectedText = visionText.text,
+                            showEditDialog = true,
+                            errorMessage = null // Clear any previous error
+                        )
+                    }
+                    AnalyticsHelper.logOcrUsed(getApplication()) // Pass context
+                }
+                .addOnFailureListener { e ->
+                    AppLogger.e(TAG, "ML Kit text recognition failed.", e)
+                    com.example.ankizero.util.GlobalErrorHandler.reportError(e, "ML Kit text recognition failed")
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = "Text recognition failed: ${e.message}"
+                        )
+                    }
+                }
         }
     }
 
@@ -111,17 +105,40 @@ class OcrViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun saveRecognizedText(text: String) {
-        // For now, just log the text.
-        // In a real app, this would involve creating a Flashcard entity
-        // and saving it via a repository.
-        AppLogger.d(TAG, "Saving recognized text: $text") // Replaced
-        AnalyticsHelper.logNewCardSaved() // Or a more specific "OcrTextSavedAsCardAttempt"
-        // Potentially navigate or give feedback to user
-        _uiState.update { it.copy(showEditDialog = false, detectedText = "", imageUri = null) } // Clear state after save
+        AppLogger.d(TAG, "Attempting to save recognized text: $text")
+        viewModelScope.launch {
+            // Basic example: Use detected text for both French and English, or prompt user for more.
+            // User might need to edit this significantly.
+            // For now, let's assume the 'text' is the French part, English part needs to be added.
+            // Or, treat the whole text as one field and let user sort it out later.
+            // A more sophisticated approach would parse the text or allow user to assign parts.
+            if (text.isNotBlank()) {
+                val newCard = com.example.ankizero.data.entity.Flashcard(
+                    frenchWord = text.lines().firstOrNull() ?: text, // Take first line or whole text
+                    englishTranslation = text.lines().drop(1).joinToString("\n").ifEmpty { "[Needs translation]" }, // Rest as English
+                    creationDate = System.currentTimeMillis(),
+                    nextReviewDate = System.currentTimeMillis(), // Due immediately
+                    intervalInDays = 1.0,
+                    easeFactor = 2.5,
+                    // Other fields like pronunciation, exampleSentence, notes, difficulty can be empty/default
+                )
+                repository.insert(newCard)
+                AnalyticsHelper.logNewCardSaved(getApplication(), "ocr") // Pass context and source
+                AppLogger.i(TAG, "New card saved from OCR text.")
+                _uiState.update { it.copy(showEditDialog = false, detectedText = "", imageUri = null, errorMessage = null) }
+            } else {
+                AppLogger.w(TAG, "Recognized text is blank, not saving.")
+                _uiState.update { it.copy(errorMessage = "Cannot save empty text.") }
+            }
+        }
     }
 
     fun clearError() {
         _uiState.update { it.copy(errorMessage = null) }
+    }
+
+    fun setImageCaptureFailed(errorMsg: String) {
+        _uiState.update { it.copy(isLoading = false, errorMessage = "Capture failed: $errorMsg", imageUri = null) }
     }
 
     fun clearAll() {

@@ -2,4 +2,30 @@
     <string name="app_name">AnkiZero</string>
     <string name="notification_channel_name">Study Reminders</string>
     <string name="notification_channel_description">Daily reminders to review your flashcards.</string>
+
+    <!-- Card Management Screen -->
+    <string name="card_management_screen_title">Manage Cards</string>
+    <string name="card_management_delete_selected_cards_cd">Delete selected cards</string>
+    <string name="card_management_create_new_card_cd">Create new card</string>
+    <string name="card_management_search_label">Search Cards</string>
+    <string name="card_management_search_icon_cd">Search cards icon</string>
+    <string name="card_management_sort_by_label">Sort by:</string>
+    <string name="card_management_sort_options_cd">Open sort options</string>
+    <string name="card_management_no_cards_placeholder">No cards yet. Tap the \'+\' button to create one.</string>
+    <string name="card_management_no_search_results_placeholder">No cards match your search.</string>
+
+    <!-- Generic/Shared -->
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="back_cd">Back</string>
+    <string name="confirm">Confirm</string>
+
+    <!-- Create Card Screen -->
+    <string name="create_card_screen_title">Create New Card</string>
+    <string name="save_new_card_cd">Save new card</string>
+
+    <!-- Edit Card Screen -->
+    <string name="edit_card_screen_title">Edit Card</string>
+    <string name="save_changes_to_card_cd">Save changes to card</string>
+
 </resources>
