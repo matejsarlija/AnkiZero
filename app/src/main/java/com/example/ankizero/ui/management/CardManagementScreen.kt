@@ -16,7 +16,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource // Added
 import androidx.compose.ui.tooling.preview.Preview
+import com.example.ankizero.R // Added for R.string
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -52,19 +55,25 @@ fun CardManagementScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Manage Cards") },
+                title = { Text(stringResource(id = R.string.card_management_screen_title)) }, // Updated
                 actions = {
                     if (uiState.selectedCardIds.isNotEmpty()) {
-                        IconButton(onClick = { viewModel.deleteSelectedCards() }) {
-                            Icon(Icons.Filled.Delete, contentDescription = "Delete selected cards") // Updated CD
+                        IconButton(
+                            onClick = { viewModel.deleteSelectedCards() },
+                            modifier = Modifier.testTag("DeleteSelectedCardsButton")
+                        ) {
+                            Icon(Icons.Filled.Delete, contentDescription = stringResource(id = R.string.card_management_delete_selected_cards_cd))  // Updated
                         }
                     }
                 }
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onNavigateToCreateCard) {
-                Icon(Icons.Filled.Add, contentDescription = "Create new card") // Updated CD
+            FloatingActionButton(
+                onClick = onNavigateToCreateCard,
+                modifier = Modifier.testTag("CreateCardFab")
+            ) {
+                Icon(Icons.Filled.Add, contentDescription = stringResource(id = R.string.card_management_create_new_card_cd)) // Updated
             }
         }
     ) { paddingValues ->
@@ -78,9 +87,10 @@ fun CardManagementScreen(
                 onValueChange = { viewModel.updateSearchQuery(it) },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
-                label = { Text("Search Cards") },
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search cards icon") } // Updated CD
+                    .padding(16.dp)
+                    .testTag("SearchTextField"),
+                label = { Text(stringResource(id = R.string.card_management_search_label)) }, // Updated
+                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = stringResource(id = R.string.card_management_search_icon_cd)) }  // Updated
             )
 
             // Sort Options
@@ -97,21 +107,22 @@ fun CardManagementScreen(
                 }
             } else if (uiState.displayedCards.isEmpty() && uiState.searchQuery.isNotEmpty()) {
                  Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
-                    Text("No cards match your search.")
+                    Text(stringResource(id = R.string.card_management_no_search_results_placeholder)) // Updated
                 }
             } else if (uiState.displayedCards.isEmpty()) {
                  Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
-                    Text("No cards yet. Tap the '+' button to create one.")
+                    Text(stringResource(id = R.string.card_management_no_cards_placeholder)) // Updated
                 }
             }
             else {
                 LazyColumn(
-                    modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).testTag("CardList"), // Added
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     items(uiState.displayedCards, key = { it.id }) { card ->
                         val isSelected = uiState.selectedCardIds.contains(card.id)
                         CardListItem(
+                        modifier = Modifier.testTag("CardListItem_${card.id}"), // Added item specific tag
                             card = card,
                             isSelected = isSelected,
                             onItemClick = {
@@ -154,14 +165,14 @@ fun SortOptionsRow(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween // Aligns "Sort by:" to left, button to right
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text("Sort by:", style = MaterialTheme.typography.titleSmall)
+        Text(stringResource(id = R.string.card_management_sort_by_label), style = MaterialTheme.typography.titleSmall) // Updated
 
         Box {
-            OutlinedButton(onClick = { expanded = true }) { // Using OutlinedButton for better visuals
+            OutlinedButton(onClick = { expanded = true }) {
                 Text(getDisplayName(selectedSortOption))
-                Icon(Icons.Filled.ArrowDropDown, contentDescription = "Open sort options") // Updated CD
+                Icon(Icons.Filled.ArrowDropDown, contentDescription = stringResource(id = R.string.card_management_sort_options_cd)) // Updated
             }
             DropdownMenu(
                 expanded = expanded,
@@ -186,12 +197,13 @@ fun SortOptionsRow(
 fun CardListItem(
     card: Flashcard,
     isSelected: Boolean,
+    modifier: Modifier = Modifier, // Added modifier
     onItemClick: () -> Unit,
     onItemLongClick: () -> Unit
 ) {
     val haptic = LocalHapticFeedback.current // Get haptic feedback instance
     Card(
-        modifier = Modifier
+        modifier = modifier // Use passed modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
             .combinedClickable(

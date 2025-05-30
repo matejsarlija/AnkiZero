@@ -2,101 +2,122 @@ package com.example.ankizero.ui.card
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.app.Application // Required for AndroidViewModel to get context
+import androidx.lifecycle.AndroidViewModel // Changed from ViewModel
 import com.example.ankizero.data.entity.Flashcard
 import com.example.ankizero.data.repository.FlashcardRepository
-import kotlinx.coroutines.flow.MutableStateFlow
-import com.example.ankizero.util.AnalyticsHelper // Added
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import com.example.ankizero.util.AnalyticsHelper
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import java.util.*
+import java.time.LocalDate
+import java.time.ZoneOffset
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.roundToInt
 
-class FlashcardViewModel(private val repository: FlashcardRepository) : ViewModel() {
-    data class UiState(
-        val currentCard: Flashcard? = null,
-        val progress: Int = 0,
-        val total: Int = 0,
-        val flipped: Boolean = false
-    )
+// This is the UiState that FlashcardScreen.kt was designed to work with
+data class FlashcardUiState(
+    val currentCard: Flashcard? = null,
+    val progressText: String = "",
+    val isDeckEmpty: Boolean = false,
+    val showFlipHint: Boolean = true // To control initial flip hint visibility
+)
 
-    private val _uiState = MutableStateFlow(UiState())
-    val uiState: StateFlow<UiState> = _uiState.asStateFlow()
+// Changed to AndroidViewModel to get Application context
+class FlashcardViewModel(
+    application: Application,
+    private val repository: FlashcardRepository
+) : AndroidViewModel(application) {
 
-    private var dueCards: List<Flashcard> = emptyList()
-    private var currentIndex = 0
+    private val _uiState = MutableStateFlow(FlashcardUiState())
+    val uiState: StateFlow<FlashcardUiState> = _uiState.asStateFlow()
+
+    private var dueCardsList: List<Flashcard> = emptyList()
+    private var currentCardIndex = 0
+    private var cardsReviewedThisSession = 0 // Counter for analytics
+    private var sessionStartTime = System.currentTimeMillis() // For session duration
 
     init {
-        loadDueCards()
+        loadDueCardsFromRepository()
     }
 
-    private fun loadDueCards() {
+    private fun loadDueCardsFromRepository() {
         viewModelScope.launch {
-            dueCards = repository.getDueFlashcards()
-            _uiState.value = _uiState.value.copy(
-                currentCard = dueCards.getOrNull(0),
-                progress = 0,
-                total = dueCards.size,
-                flipped = false
-            )
+            repository.getDueCards() // Assumes getDueCards() correctly fetches for 'today'
+                .collectLatest { cards ->
+                    dueCardsList = cards.shuffled() // Shuffle for variety
+                    cardsReviewedThisSession = 0 // Reset counter for new batch of cards
+                    sessionStartTime = System.currentTimeMillis() // Reset session start time
+                    updateUiWithCurrentCard()
+                }
         }
     }
 
-    fun flipCard() {
-        _uiState.value = _uiState.value.copy(flipped = !_uiState.value.flipped)
-    }
-
-    fun nextCard() {
-        if (currentIndex < dueCards.size - 1) {
-            currentIndex++
-            _uiState.value = _uiState.value.copy(
-                currentCard = dueCards.getOrNull(currentIndex),
-                progress = currentIndex,
-                flipped = false
-            )
-        }
-    }
-
-    fun prevCard() {
-        if (currentIndex > 0) {
-            currentIndex--
-            _uiState.value = _uiState.value.copy(
-                currentCard = dueCards.getOrNull(currentIndex),
-                progress = currentIndex,
-                flipped = false
-            )
-        }
-    }
-
-    fun rateMemorized() {
-        val card = dueCards.getOrNull(currentIndex) ?: return
-        val newInterval = (card.interval * 1.8).toInt().coerceAtLeast(1)
-        val newEase = (card.easeFactor + 0.1).coerceAtMost(2.5)
-        val nextDue = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, newInterval) }.time
-        viewModelScope.launch {
-            repository.updateFlashcard(
-                card.copy(
-                    interval = newInterval,
-                    easeFactor = newEase,
-                    due = nextDue
+    private fun updateUiWithCurrentCard() {
+        if (dueCardsList.isEmpty()) {
+            if (cardsReviewedThisSession > 0) { // Log session completed only if cards were reviewed
+                val sessionDurationSeconds = (System.currentTimeMillis() - sessionStartTime) / 1000
+                AnalyticsHelper.logReviewSessionCompleted(getApplication(), cardsReviewedThisSession, sessionDurationSeconds)
+            }
+            _uiState.update {
+                it.copy(
+                    currentCard = null,
+                    progressText = "No cards due!",
+                    isDeckEmpty = true,
+                    showFlipHint = false
                 )
-            )
-            loadDueCards()
+            }
+        } else {
+            // Ensure index is within bounds, reset if necessary (e.g., after deletion/rating all)
+            if (currentCardIndex !in dueCardsList.indices && dueCardsList.isNotEmpty()) {
+                currentCardIndex = 0 // Or handle completion
+            }
+            _uiState.update {
+                it.copy(
+                    currentCard = dueCardsList.getOrNull(currentCardIndex),
+                    progressText = "Card ${currentCardIndex + 1}/${dueCardsList.size}",
+                    isDeckEmpty = false,
+                    showFlipHint = it.currentCard == null && dueCardsList.isNotEmpty()
+                )
+            }
         }
     }
 
-    fun rateNo() {
-        val card = dueCards.getOrNull(currentIndex) ?: return
-        val newEase = (card.easeFactor - 0.2).coerceAtLeast(1.3)
-        val nextDue = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, 1) }.time
+
+    fun processCardRating(isMemorized: Boolean) {
+        val cardToProcess = uiState.value.currentCard ?: return
+
         viewModelScope.launch {
-            repository.updateFlashcard(
-                card.copy(
-                    interval = 1,
-                    easeFactor = newEase,
-                    due = nextDue
-                )
-            )
-            loadDueCards()
+            val updatedCard = repository.processReview(cardToProcess, isMemorized)
+            AnalyticsHelper.logCardReviewed(getApplication(), updatedCard.id, isMemorized)
+            cardsReviewedThisSession++ // Increment reviewed cards counter
+
+            dueCardsList = dueCardsList.filterNot { it.id == updatedCard.id }
+            if (currentCardIndex >= dueCardsList.size && dueCardsList.isNotEmpty()) {
+                 currentCardIndex = dueCardsList.size - 1
+            }
+
+            updateUiWithCurrentCard() // This will handle empty list and log session completion
         }
+    }
+
+    fun showNextCard(moveForward: Boolean = true) {
+        if (dueCardsList.isEmpty()) {
+            updateUiWithCurrentCard() // Update to empty state
+            return
+        }
+
+        if (moveForward) {
+            currentCardIndex = (currentCardIndex + 1) % dueCardsList.size
+        } else { // Moving backward
+            currentCardIndex = if (currentCardIndex == 0) dueCardsList.size - 1 else currentCardIndex - 1
+        }
+        // When navigating, don't show flip hint unless it's a new session logic
+        _uiState.update { it.copy(showFlipHint = false) }
+        updateUiWithCurrentCard()
+    }
+
+    fun dismissFlipHint() {
+        _uiState.update { it.copy(showFlipHint = false) }
     }
 }

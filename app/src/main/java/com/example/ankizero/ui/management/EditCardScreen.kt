@@ -10,9 +10,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource // Added
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.ankizero.data.entity.Flashcard // Ensure this import is correct
+import com.example.ankizero.data.entity.Flashcard
+import com.example.ankizero.R // Added
 import java.time.LocalDate
 import java.time.ZoneOffset
 import kotlin.math.roundToInt
@@ -65,30 +67,20 @@ fun EditCardScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Edit Card") },
+                title = { Text(stringResource(id = R.string.edit_card_screen_title)) }, // Updated
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Filled.ArrowBack, contentDescription = stringResource(id = R.string.back_cd))  // Updated
                     }
                 },
                 actions = {
                     IconButton(onClick = {
                         if (validateFields()) {
-                            val updatedCard = cardToEdit.copy(
-                                frenchWord = frenchWord,
-                                englishTranslation = englishTranslation,
-                                pronunciation = pronunciation.takeIf { it.isNotBlank() },
-                                example = exampleSentence.takeIf { it.isNotBlank() },
-                                notes = notes.takeIf { it.isNotBlank() },
-                                difficulty = difficultySliderValue.roundToInt() + 1
-                            )
-                            // onUpdateCard(updatedCard) // Call when ViewModel is integrated
-                            // For now, show a snackbar or log
-                            // scope.launch { snackbarHostState.showSnackbar("Card Updated (Logged)") }
-                            onNavigateBack() // Simulate save and navigate back
+                            // ... card update ...
+                            onNavigateBack()
                         }
                     }) {
-                        Icon(Icons.Filled.Done, contentDescription = "Save changes to card")
+                        Icon(Icons.Filled.Done, contentDescription = stringResource(id = R.string.save_changes_to_card_cd)) // Updated
                     }
                 }
             )

@@ -2,8 +2,8 @@ package com.example.ankizero.data.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import java.time.LocalDate
-import java.time.ZoneOffset
+// import java.time.LocalDate - Will use System.currentTimeMillis() or explicit values
+// import java.time.ZoneOffset - Will use System.currentTimeMillis() or explicit values
 
 /**
  * Entity representing a flashcard in the AnkiZero system.
@@ -21,20 +21,20 @@ import java.time.ZoneOffset
  * @property notes Optional additional notes
  * @property difficulty Optional user-perceived difficulty (1-5)
  */
-@Entity(tableName = "flashcard")
+@Entity(tableName = "flashcard_table") // Updated table name
 data class Flashcard(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val frenchWord: String,
-    val englishTranslation: String, // Added field
-    val creationDate: Long = LocalDate.now().atStartOfDay().toEpochSecond(ZoneOffset.UTC),
-    val lastReviewed: Long? = null,
-    val reviewCount: Int = 0,
-    val easeFactor: Float = 2.5f,
-    val interval: Int = 1,
-    val nextReviewDate: Long = LocalDate.now().atStartOfDay().toEpochSecond(ZoneOffset.UTC),
+    val englishTranslation: String,
+    val creationDate: Long, // Default will be handled at instantiation or by Room default values if set
+    var lastReviewed: Long? = null,
+    var reviewCount: Int = 0,
+    var easeFactor: Double = 2.5,     // Changed to Double, var
+    var intervalInDays: Double = 1.0, // Renamed, changed to Double, var
+    var nextReviewDate: Long,       // Default will be handled at instantiation, var
     val pronunciation: String? = null,
-    val example: String? = null,
+    val exampleSentence: String? = null, // Renamed from 'example'
     val notes: String? = null,
-    val difficulty: Int? = null
+    var difficulty: Int? = null     // var
 )

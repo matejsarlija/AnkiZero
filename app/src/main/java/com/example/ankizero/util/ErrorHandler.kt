@@ -15,14 +15,14 @@ object GlobalErrorHandler {
      */
     fun reportError(throwable: Throwable, message: String? = null) {
         val errorMessage = message ?: "An error occurred"
-        Log.e(TAG, "$errorMessage: ${throwable.message}", throwable)
+        AppLogger.e(TAG, "$errorMessage: ${throwable.message}", throwable) // Use AppLogger
 
-        // TODO: Integrate with Firebase Crashlytics or other reporting services
-        // Example for Crashlytics:
-        // FirebaseCrashlytics.getInstance().recordException(throwable)
-        // if (message != null) {
-        //     FirebaseCrashlytics.getInstance().log(message)
-        // }
+        // FirebaseCrashlytics integration
+        val crashlytics = com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance()
+        if (message != null) {
+            crashlytics.log(message) // Log custom message before the exception
+        }
+        crashlytics.recordException(throwable)
     }
 
     /**

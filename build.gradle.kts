@@ -4,4 +4,6 @@ plugins {
     alias(libs.plugins.kotlin.android) apply false
     id("com.google.devtools.ksp") version "2.0.21-1.0.27" apply false
     alias(libs.plugins.compose.compiler) apply false
+    alias(libs.plugins.google.services) apply false // Added
+    alias(libs.plugins.firebase.crashlytics) apply false // Added
 }

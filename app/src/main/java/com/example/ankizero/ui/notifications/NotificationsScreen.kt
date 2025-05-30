@@ -32,8 +32,8 @@ val previewDueCards = List(3) { index ->
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NotificationsScreen(
-    viewModel: NotificationsViewModel = viewModel(factory = NotificationsViewModelFactory(LocalContext.current.applicationContext as Application))
+fun NotificationsScreen( // Removed default ViewModel instantiation
+    viewModel: NotificationsViewModel
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 

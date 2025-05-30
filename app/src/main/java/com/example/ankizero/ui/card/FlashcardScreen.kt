@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.testTag // Added for testTag
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -46,29 +47,36 @@ fun FlashcardScreen(
             verticalArrangement = Arrangement.SpaceAround
         ) {
             FlashcardView(
+                modifier = Modifier.testTag("FlashcardView"), // Added testTag
                 frontText = currentCard.frenchWord,
-                backText = currentCard.englishTranslation, // Assuming this field exists
-                onSwipeLeft = { viewModel.showNextCard(moveForward = true) }, // Swipe left for next
-                onSwipeRight = { viewModel.showNextCard(moveForward = false) } // Swipe right for previous
+                backText = currentCard.englishTranslation,
+                onSwipeLeft = { viewModel.showNextCard(moveForward = true) },
+                onSwipeRight = { viewModel.showNextCard(moveForward = false) }
             )
 
-            Text(uiState.progressText)
+            Text(uiState.progressText, modifier = Modifier.testTag("ProgressText")) // Added testTag
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 val haptic = LocalHapticFeedback.current
-                Button(onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    viewModel.processCardRating(isMemorized = false)
-                }) {
+                Button(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        viewModel.processCardRating(isMemorized = false)
+                    },
+                    modifier = Modifier.testTag("NoButton") // Added testTag
+                ) {
                     Text("No")
                 }
-                Button(onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    viewModel.processCardRating(isMemorized = true)
-                }) {
+                Button(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        viewModel.processCardRating(isMemorized = true)
+                    },
+                    modifier = Modifier.testTag("MemorizedButton") // Added testTag
+                ) {
                     Text("Memorized")
                 }
             }
@@ -115,6 +123,7 @@ TODO: UI Test Scenarios for FlashcardScreen:
 
 @Composable
 fun FlashcardView(
+    modifier: Modifier = Modifier, // Added modifier parameter
     frontText: String,
     backText: String,
     onSwipeLeft: () -> Unit,
@@ -130,9 +139,9 @@ fun FlashcardView(
     var dragOffsetX by remember { mutableFloatStateOf(0f) }
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth(0.85f) // Standardized width
-            .aspectRatio(1.6f)   // Standardized aspect ratio
+        modifier = modifier // Use passed modifier
+            .fillMaxWidth(0.85f)
+            .aspectRatio(1.6f)
             .graphicsLayer {
                 this.rotationY = rotationY
                 // Improve perspective for 3D effect
@@ -169,18 +178,20 @@ fun FlashcardView(
             if (rotationY <= 90f || rotationY >= 270f) { // Show front when mostly front-facing
                 Text(
                     text = frontText,
-                    style = MaterialTheme.typography.headlineSmall, // M3 typography
+                    style = MaterialTheme.typography.headlineSmall,
                     modifier = Modifier
                         .padding(16.dp)
-                        .graphicsLayer { rotationY = 0f } // Keep text upright
+                        .graphicsLayer { rotationY = 0f }
+                        .testTag("CardFrontText") // Added testTag
                 )
             } else { // Show back when mostly back-facing
                 Text(
                     text = backText,
-                    style = MaterialTheme.typography.bodyLarge, // M3 typography
+                    style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier
                         .padding(16.dp)
-                        .graphicsLayer { this.rotationY = 180f } // Counter-rotate to make it readable
+                        .graphicsLayer { this.rotationY = 180f }
+                        .testTag("CardBackText") // Added testTag
                 )
             }
         }
