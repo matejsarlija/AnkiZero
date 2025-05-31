@@ -92,48 +92,42 @@ abstract class AppDatabase : RoomDatabase() {
                     frenchWord = "excusez-moi",
                     englishTranslation = "excuse me",
                     creationDate = currentTimeMs,
-                    nextReviewDate = currentTimeMs,
-                    pronunciation = "ex-kew-ZAY mwah"
+                    nextReviewDate = currentTimeMs
                 ),
                 Flashcard(
                     frenchWord = "parler",
                     englishTranslation = "to speak",
                     creationDate = currentTimeMs,
                     nextReviewDate = currentTimeMs,
-                    pronunciation = "par-LAY",
-                    example = "Je peux parler français."
+                    exampleSentence = "Je peux parler français."
                 ),
                 Flashcard(
                     frenchWord = "manger",
                     englishTranslation = "to eat",
                     creationDate = currentTimeMs,
                     nextReviewDate = currentTimeMs,
-                    pronunciation = "mahn-ZHAY",
-                    example = "J'aime manger du pain."
+                    exampleSentence = "J'aime manger du pain."
                 ),
                 Flashcard(
                     frenchWord = "boire",
                     englishTranslation = "to drink",
                     creationDate = currentTimeMs,
                     nextReviewDate = currentTimeMs,
-                    pronunciation = "bwahr",
-                    example = "Je vais boire de l'eau."
+                    exampleSentence = "Je vais boire de l'eau."
                 ),
                 Flashcard(
                     frenchWord = "dormir",
                     englishTranslation = "to sleep",
                     creationDate = currentTimeMs,
                     nextReviewDate = currentTimeMs,
-                    pronunciation = "dor-MEER",
-                    example = "Je dois dormir maintenant."
+                    exampleSentence = "Je dois dormir maintenant."
                 ),
                 Flashcard(
                     frenchWord = "comprendre",
                     englishTranslation = "to understand",
                     creationDate = currentTimeMs,
                     nextReviewDate = currentTimeMs,
-                    pronunciation = "kom-PRAHN-druh",
-                    example = "Je ne comprends pas."
+                    exampleSentence = "Je ne comprends pas."
                 )
             )
 

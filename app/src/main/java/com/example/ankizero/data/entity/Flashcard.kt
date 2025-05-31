@@ -16,7 +16,6 @@ import androidx.room.PrimaryKey
  * @property easeFactor Multiplier for the interval adjustments (SM-2 algorithm)
  * @property intervalInDays Current interval in days
  * @property nextReviewDate When the card is due for review (epoch milliseconds)
- * @property pronunciation Optional pronunciation guide
  * @property exampleSentence Optional example usage
  * @property notes Optional additional notes
  * @property difficulty Optional user-perceived difficulty (1-5)
