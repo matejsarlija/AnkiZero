@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import com.example.ankizero.data.entity.Flashcard
 import com.example.ankizero.data.repository.FlashcardRepository // Added import
 import androidx.work.* // Added WorkManager imports
-import androidx.work.*
 import com.example.ankizero.util.AnalyticsHelper // Added
 import com.example.ankizero.util.AppLogger
 import com.example.ankizero.util.workers.ReviewReminderWorker
