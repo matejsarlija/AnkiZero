@@ -33,7 +33,6 @@ data class Flashcard(
     var easeFactor: Double = 2.5,     // Changed to Double, var
     var intervalInDays: Double = 1.0, // Renamed, changed to Double, var
     var nextReviewDate: Long,       // Default will be handled at instantiation, var
-    val pronunciation: String? = null,
     val exampleSentence: String? = null, // Renamed from 'example'
     val notes: String? = null,
     var difficulty: Int? = null     // var

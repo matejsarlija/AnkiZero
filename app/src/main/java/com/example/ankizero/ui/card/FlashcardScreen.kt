@@ -1,7 +1,4 @@
 package com.example.ankizero.ui.card
-
-package com.example.ankizero.ui.card
-
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable

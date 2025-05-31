@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.Flow
  * Provides methods to interact with the flashcard table in the database.
  */
 @Dao
-interface FlashcardDao {
+interface FlashCardDao {
     /**
      * Insert a new flashcard into the database.
      * @param flashcard The flashcard to insert

@@ -60,33 +60,29 @@ abstract class AppDatabase : RoomDatabase() {
         /**
          * Populate the database with sample flashcards.
          */
-        private suspend fun populateDatabase(flashcardDao: FlashcardDao) {
+        private suspend fun populateDatabase(flashcardDao: FlashCardDao) {
             val currentTime = LocalDate.now().atStartOfDay().toEpochSecond(ZoneOffset.UTC)
 
             val sampleFlashcards = listOf(
                 Flashcard(
                     frenchWord = "bonjour",
                     creationDate = currentTime,
-                    nextReviewDate = currentTime,
-                    pronunciation = "bohn-ZHOOR"
+                    nextReviewDate = currentTime
                 ),
                 Flashcard(
                     frenchWord = "au revoir",
                     creationDate = currentTime,
-                    nextReviewDate = currentTime,
-                    pronunciation = "oh ruh-VWAHR"
+                    nextReviewDate = currentTime
                 ),
                 Flashcard(
                     frenchWord = "merci",
                     creationDate = currentTime,
-                    nextReviewDate = currentTime,
-                    pronunciation = "mehr-SEE"
+                    nextReviewDate = currentTime
                 ),
                 Flashcard(
                     frenchWord = "s'il vous plaît",
                     creationDate = currentTime,
-                    nextReviewDate = currentTime,
-                    pronunciation = "seel voo PLEH"
+                    nextReviewDate = currentTime
                 ),
                 Flashcard(
                     frenchWord = "excusez-moi",
