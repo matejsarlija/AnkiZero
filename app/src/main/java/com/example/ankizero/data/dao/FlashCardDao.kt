@@ -74,7 +74,7 @@ interface FlashCardDao {
 
     /**
      * Get all flashcards due for review today.
-     * @param currentTime The current time in epoch seconds
+     * @param currentTime The current time in epoch milliseconds
      * @return A Flow of flashcards due for review
      */
     @Query("SELECT * FROM flashcard_table WHERE nextReviewDate <= :currentTime ORDER BY nextReviewDate ASC") // table_name
@@ -82,7 +82,7 @@ interface FlashCardDao {
 
     /**
      * Get the count of flashcards due for review today.
-     * @param currentTime The current time in epoch seconds
+     * @param currentTime The current time in epoch milliseconds
      * @return The count of flashcards due for review
      */
     @Query("SELECT COUNT(*) FROM flashcard_table WHERE nextReviewDate <= :currentTime") // table_name

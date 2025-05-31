@@ -44,7 +44,7 @@ abstract class AppDatabase : RoomDatabase() {
                             // Populate with sample data when the database is created
                             INSTANCE?.let { database ->
                                 CoroutineScope(Dispatchers.IO).launch {
-                                    populateDatabase(database.flashcardDao())
+                                    populateDatabase(database.flashCardDao())
                                 }
                             }
                         }
@@ -61,67 +61,77 @@ abstract class AppDatabase : RoomDatabase() {
          * Populate the database with sample flashcards.
          */
         private suspend fun populateDatabase(flashcardDao: FlashCardDao) {
-            val currentTime = LocalDate.now().atStartOfDay().toEpochSecond(ZoneOffset.UTC)
+            val currentTimeMs = System.currentTimeMillis()
 
             val sampleFlashcards = listOf(
                 Flashcard(
                     frenchWord = "bonjour",
-                    creationDate = currentTime,
-                    nextReviewDate = currentTime
+                    englishTranslation = "hello",
+                    creationDate = currentTimeMs,
+                    nextReviewDate = currentTimeMs
                 ),
                 Flashcard(
                     frenchWord = "au revoir",
-                    creationDate = currentTime,
-                    nextReviewDate = currentTime
+                    englishTranslation = "goodbye",
+                    creationDate = currentTimeMs,
+                    nextReviewDate = currentTimeMs
                 ),
                 Flashcard(
                     frenchWord = "merci",
-                    creationDate = currentTime,
-                    nextReviewDate = currentTime
+                    englishTranslation = "thank you",
+                    creationDate = currentTimeMs,
+                    nextReviewDate = currentTimeMs
                 ),
                 Flashcard(
                     frenchWord = "s'il vous plaît",
-                    creationDate = currentTime,
-                    nextReviewDate = currentTime
+                    englishTranslation = "please",
+                    creationDate = currentTimeMs,
+                    nextReviewDate = currentTimeMs
                 ),
                 Flashcard(
                     frenchWord = "excusez-moi",
-                    creationDate = currentTime,
-                    nextReviewDate = currentTime,
+                    englishTranslation = "excuse me",
+                    creationDate = currentTimeMs,
+                    nextReviewDate = currentTimeMs,
                     pronunciation = "ex-kew-ZAY mwah"
                 ),
                 Flashcard(
                     frenchWord = "parler",
-                    creationDate = currentTime,
-                    nextReviewDate = currentTime,
+                    englishTranslation = "to speak",
+                    creationDate = currentTimeMs,
+                    nextReviewDate = currentTimeMs,
                     pronunciation = "par-LAY",
                     example = "Je peux parler français."
                 ),
                 Flashcard(
                     frenchWord = "manger",
-                    creationDate = currentTime,
-                    nextReviewDate = currentTime,
+                    englishTranslation = "to eat",
+                    creationDate = currentTimeMs,
+                    nextReviewDate = currentTimeMs,
                     pronunciation = "mahn-ZHAY",
                     example = "J'aime manger du pain."
                 ),
                 Flashcard(
                     frenchWord = "boire",
-                    creationDate = currentTime,
-                    nextReviewDate = currentTime,
+                    englishTranslation = "to drink",
+                    creationDate = currentTimeMs,
+                    nextReviewDate = currentTimeMs,
                     pronunciation = "bwahr",
                     example = "Je vais boire de l'eau."
                 ),
                 Flashcard(
                     frenchWord = "dormir",
-                    creationDate = currentTime,
-                    nextReviewDate = currentTime,
+                    englishTranslation = "to sleep",
+                    creationDate = currentTimeMs,
+                    nextReviewDate = currentTimeMs,
                     pronunciation = "dor-MEER",
                     example = "Je dois dormir maintenant."
                 ),
                 Flashcard(
                     frenchWord = "comprendre",
-                    creationDate = currentTime,
-                    nextReviewDate = currentTime,
+                    englishTranslation = "to understand",
+                    creationDate = currentTimeMs,
+                    nextReviewDate = currentTimeMs,
                     pronunciation = "kom-PRAHN-druh",
                     example = "Je ne comprends pas."
                 )

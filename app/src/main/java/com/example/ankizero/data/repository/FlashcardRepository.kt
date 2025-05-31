@@ -3,8 +3,6 @@ package com.example.ankizero.data.repository
 import com.example.ankizero.data.dao.FlashCardDao // Updated import
 import com.example.ankizero.data.entity.Flashcard
 import kotlinx.coroutines.flow.Flow
-import java.time.LocalDate
-import java.time.ZoneOffset // Kept for getCardsDueToday
 
 /**
  * Repository for managing Flashcard data.
@@ -26,16 +24,16 @@ class FlashcardRepository(private val flashCardDao: FlashCardDao) { // Updated D
      * The current date is determined at the time of the call.
      */
     fun getDueCards(): Flow<List<Flashcard>> { // Renamed from getCardsDueToday for clarity on when "today" is determined
-        val currentDate = LocalDate.now().atStartOfDay().toEpochSecond(ZoneOffset.UTC)
-        return flashCardDao.getDueCards(currentDate)
+        val currentTimeMs = System.currentTimeMillis()
+        return flashCardDao.getCardsDueToday(currentTimeMs)
     }
 
     /**
      * Get the count of flashcards due for review on or before the current date.
      */
     fun getDueCardsCount(): Flow<Int> {
-        val currentDate = LocalDate.now().atStartOfDay().toEpochSecond(ZoneOffset.UTC)
-        return flashCardDao.getDueCardsCount(currentDate)
+        val currentTimeMs = System.currentTimeMillis()
+        return flashCardDao.getDueCardsCount(currentTimeMs)
     }
 
     /**
@@ -104,36 +102,36 @@ class FlashcardRepository(private val flashCardDao: FlashCardDao) { // Updated D
      * @return The updated flashcard
      */
     suspend fun processReview(flashcard: Flashcard, remembered: Boolean): Flashcard {
-        val currentTimeSeconds = System.currentTimeMillis() / 1000 // Current time in seconds
+        val currentTimeMs = System.currentTimeMillis()
 
         val updatedFlashcard = if (remembered) {
             // User remembered the card - increase interval
             // Ensure calculations use Double for intervalInDays and easeFactor
-            val newInterval = flashcard.intervalInDays * 1.8
+            val newInterval = flashcard.intervalInDays * 1.8 // intervalInDays is already a Double
             val newEaseFactor = (flashcard.easeFactor + 0.1).coerceAtMost(2.5) // Max easeFactor 2.5
 
             flashcard.copy(
                 intervalInDays = newInterval,
                 easeFactor = newEaseFactor,
-                lastReviewed = System.currentTimeMillis(), // Use ms for consistency with creationDate
-                nextReviewDate = System.currentTimeMillis() + (newInterval * 24 * 60 * 60 * 1000).toLong(), // interval in ms
+                lastReviewed = currentTimeMs,
+                nextReviewDate = currentTimeMs + (newInterval * 24 * 60 * 60 * 1000).toLong(), // interval in ms
                 reviewCount = flashcard.reviewCount + 1
             )
         } else {
             // User didn't remember - reset interval
             val newEaseFactor = (flashcard.easeFactor - 0.2).coerceAtLeast(1.3) // Min easeFactor 1.3
-            val newInterval = 1.0 // Reset interval to 1 day
+            val newInterval = 1.0 // Reset interval to 1 day, which is a Double
 
             flashcard.copy(
-                intervalInDays = newInterval,
+                intervalInDays = newInterval, // This will be 1.0
                 easeFactor = newEaseFactor,
-                lastReviewed = System.currentTimeMillis(),
-                nextReviewDate = System.currentTimeMillis() + (24 * 60 * 60 * 1000), // Review tomorrow (1 day in ms)
+                lastReviewed = currentTimeMs,
+                nextReviewDate = currentTimeMs + (24 * 60 * 60 * 1000L), // Review tomorrow (1 day in ms)
                 reviewCount = flashcard.reviewCount + 1
             )
         }
 
-        flashCardDao.update(updatedFlashcard) // Use renamed update method
+        flashCardDao.update(updatedFlashcard)
         return updatedFlashcard
     }
 }
