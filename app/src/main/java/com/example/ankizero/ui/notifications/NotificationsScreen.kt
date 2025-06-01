@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.ankizero.data.database.AppDatabase // Added import
 import com.example.ankizero.data.entity.Flashcard
 import com.example.ankizero.data.repository.FlashcardRepository // Added import
 import java.time.LocalDate
@@ -129,7 +130,7 @@ fun NotificationsScreenPreviewLight() {
     val context = LocalContext.current
     val application = context.applicationContext as Application
     // Assuming CardRepository can be instantiated directly for preview
-    val repository = FlashcardRepository(application)
+    val repository = FlashcardRepository(AppDatabase.getDatabase(application).flashCardDao())
     // Assuming NotificationsViewModel can be instantiated directly for preview
     val previewViewModel = NotificationsViewModel(application, repository)
 
@@ -143,7 +144,7 @@ fun NotificationsScreenPreviewLight() {
 fun NotificationsScreenPreviewDark() {
     val context = LocalContext.current
     val application = context.applicationContext as Application
-    val repository = FlashcardRepository(application)
+    val repository = FlashcardRepository(AppDatabase.getDatabase(application).flashCardDao())
     val previewViewModel = NotificationsViewModel(application, repository)
 
     MaterialTheme(colorScheme = darkColorScheme()) {

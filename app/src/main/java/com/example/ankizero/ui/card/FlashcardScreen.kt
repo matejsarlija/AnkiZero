@@ -17,6 +17,7 @@ import androidx.compose.ui.platform.testTag // Added for testTag
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import android.app.Application
+import com.example.ankizero.data.database.AppDatabase
 import com.example.ankizero.data.repository.FlashcardRepository
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle // Preferred
@@ -29,8 +30,8 @@ fun FlashcardScreen(
     // viewModel: FlashcardViewModel = viewModel(factory = FlashcardViewModelFactory()) // Original
     // Updated to provide application and repository to the factory
     application: Application = LocalContext.current.applicationContext as Application,
-    repository: FlashcardRepository = FlashcardRepository(application), // Assuming FlashcardRepository can be created like this
-    viewModel: FlashcardViewModel = viewModel(factory = FlashcardViewModelFactory(application, repository))
+    repository: FlashcardRepository = FlashcardRepository(AppDatabase.getDatabase(application).flashCardDao()), // Assuming FlashcardRepository can be created like this
+    viewModel: FlashcardViewModel = viewModel(factory = FlashcardViewModelFactory(application))
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val currentCard = uiState.currentCard
@@ -210,7 +211,7 @@ fun FlashcardScreenPreview() {
     // A proper preview setup might use a fake repository.
     val context = LocalContext.current
     val application = context.applicationContext as Application
-    val repository = FlashcardRepository(application) // Assuming this constructor exists
+    val repository = FlashcardRepository(AppDatabase.getDatabase(application).flashCardDao()) // Assuming this constructor exists
 
     MaterialTheme {
         FlashcardScreen(
@@ -226,7 +227,7 @@ fun FlashcardScreenPreview() {
 fun FlashcardScreenDarkPreview() {
     val context = LocalContext.current
     val application = context.applicationContext as Application
-    val repository = FlashcardRepository(application) // Assuming this constructor exists
+    val repository = FlashcardRepository(AppDatabase.getDatabase(application).flashCardDao()) // Assuming this constructor exists
 
     MaterialTheme(colorScheme = darkColorScheme()) {
         FlashcardScreen(
@@ -242,7 +243,7 @@ fun FlashcardScreenDarkPreview() {
 fun FlashcardScreenEmptyPreview() {
     val context = LocalContext.current
     val application = context.applicationContext as Application
-    val repository = FlashcardRepository(application) // Assuming this constructor exists
+    val repository = FlashcardRepository(AppDatabase.getDatabase(application).flashCardDao()) // Assuming this constructor exists
     val emptyViewModel = FlashcardViewModel(application, repository)
     // Simulate empty state for preview - this is a bit of a hack for preview
     // In a real scenario, the ViewModel would be initialized with no due cards

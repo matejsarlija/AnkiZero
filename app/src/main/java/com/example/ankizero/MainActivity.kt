@@ -185,7 +185,7 @@ fun AnkiZeroApp(applicationContext: Context, repository: FlashcardRepository) { 
             composable(Screen.Flashcards) { // Use constant
                 val application = LocalContext.current.applicationContext as Application
                 val viewModel: com.example.ankizero.ui.card.FlashcardViewModel = viewModel(
-                    factory = com.example.ankizero.ui.card.FlashcardViewModelFactory(application, repository)
+                    factory = com.example.ankizero.ui.card.FlashcardViewModelFactory(application)
                 )
                 FlashcardScreen(viewModel = viewModel)
             }
@@ -193,7 +193,7 @@ fun AnkiZeroApp(applicationContext: Context, repository: FlashcardRepository) { 
             composable(Screen.Management) { // Use constant
                 val application = LocalContext.current.applicationContext as Application
                 val viewModel: com.example.ankizero.ui.management.CardManagementViewModel = viewModel(
-                    factory = com.example.ankizero.ui.management.CardManagementViewModelFactory(application, repository)
+                    factory = com.example.ankizero.ui.management.CardManagementViewModelFactory(application)
                 )
                 CardManagementScreen(
                     viewModel = viewModel,
