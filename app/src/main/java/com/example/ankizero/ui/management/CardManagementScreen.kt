@@ -21,6 +21,9 @@ import androidx.compose.ui.res.stringResource // Added
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.ankizero.R // Added for R.string
 import androidx.compose.ui.unit.dp
+import android.app.Application
+import androidx.compose.ui.platform.LocalContext
+import com.example.ankizero.data.CardRepository
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ankizero.data.entity.Flashcard // Assuming Flashcard entity is here
@@ -46,7 +49,10 @@ enum class SortOption {
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun CardManagementScreen(
-    viewModel: CardManagementViewModel = viewModel(factory = CardManagementViewModelFactory()),
+    // Updated to provide application and repository to the factory
+    application: Application = LocalContext.current.applicationContext as Application,
+    repository: CardRepository = CardRepository(application), // Assuming CardRepository can be created like this
+    viewModel: CardManagementViewModel = viewModel(factory = CardManagementViewModelFactory(application, repository)),
     onNavigateToEditCard: (Long) -> Unit = {},
     onNavigateToCreateCard: () -> Unit = {}
 ) {
@@ -250,6 +256,7 @@ val previewFlashcardsForScreen = List(5) { index ->
         frenchWord = "Preview Mot ${index + 1}",
         englishTranslation = "Preview Word ${index + 1}",
         creationDate = LocalDate.now().minusDays(index.toLong()).atStartOfDay().toEpochSecond(ZoneOffset.UTC),
+        nextReviewDate = LocalDate.now().minusDays(index.toLong()).atStartOfDay().toEpochSecond(ZoneOffset.UTC), // Added: Default to creation date for preview
         difficulty = (index % 5) + 1
     )
 }
@@ -257,16 +264,22 @@ val previewFlashcardsForScreen = List(5) { index ->
 @Preview(showBackground = true, name = "Card Management Screen - Light")
 @Composable
 fun CardManagementScreenPreviewLight() {
+    val context = LocalContext.current
+    val application = context.applicationContext as Application
+    val repository = CardRepository(application)
     MaterialTheme(colorScheme = lightColorScheme()) {
-        CardManagementScreen() // Uses default VM from factory which has initial data
+        CardManagementScreen(application = application, repository = repository) // Uses default VM from factory which has initial data
     }
 }
 
 @Preview(showBackground = true, name = "Card Management Screen - Dark")
 @Composable
 fun CardManagementScreenPreviewDark() {
+    val context = LocalContext.current
+    val application = context.applicationContext as Application
+    val repository = CardRepository(application)
     MaterialTheme(colorScheme = darkColorScheme()) {
-        CardManagementScreen()
+        CardManagementScreen(application = application, repository = repository)
     }
 }
 

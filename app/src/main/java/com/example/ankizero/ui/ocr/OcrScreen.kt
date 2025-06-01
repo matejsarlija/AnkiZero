@@ -11,7 +11,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
-import androidx.camera.core.Preview
+import androidx.camera.core.Preview as CameraXPreview // Aliased import
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.BorderStroke
@@ -226,7 +226,7 @@ fun CameraPreviewView( // Renamed from CameraPreview to avoid conflict if any ot
             val executor: ExecutorService = Executors.newSingleThreadExecutor()
             cameraProviderFuture.addListener({
                 val cameraProvider = cameraProviderFuture.get()
-                val preview = Preview.Builder().build().also {
+                val preview = CameraXPreview.Builder().build().also { // Use aliased import
                     it.setSurfaceProvider(previewView.surfaceProvider)
                 }
                 val imageCapture = ImageCapture.Builder().build()

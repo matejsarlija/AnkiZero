@@ -36,35 +36,45 @@ class CardManagementViewModel(
     // Master list from repository
     private val masterCardsFlow: Flow<List<Flashcard>> = repository.getAllCards()
 
+    init {
+        viewModelScope.launch {
+            masterCardsFlow.take(1).collect { // Collect only the first emission
+                _isLoading.value = false // Set loading to false once data is received
+            }
+        }
+    }
+
     val uiState: StateFlow<CardManagementUiState> = combine(
         masterCardsFlow,
         _searchQuery,
         _sortOption,
         _selectedCardIds,
-        _isLoading,
+        _isLoading, // This is the StateFlow<Boolean> for loading state
         _sortMenuExpanded
-    ) { cards, query, sort, selectedIds, loading, sortMenuExpanded ->
-        _isLoading.value = false // Set loading to false once master list is processed by combine
+    ) { cards, query, sort, selectedIds, isLoadingValue, sortMenuExpandedValue -> // Renamed params for clarity
+        // isLoadingValue is the current state of _isLoading.value
+        // The side-effect _isLoading.value = false was removed from here.
         val filtered = if (query.isBlank()) {
             cards
         } else {
-            cards.filter {
-                it.frenchWord.contains(query, ignoreCase = true) ||
-                it.englishTranslation.contains(query, ignoreCase = true)
+            cards.filter { flashcard -> // Explicitly name 'it' to 'flashcard' for clarity
+                flashcard.frenchWord.contains(query, ignoreCase = true) ||
+                flashcard.englishTranslation.contains(query, ignoreCase = true)
             }
         }
         val sorted = when (sort) {
-            SortOption.Alphabetical -> filtered.sortedBy { it.frenchWord }
-            SortOption.Recent -> filtered.sortedByDescending { it.creationDate }
-            SortOption.Difficulty -> filtered.sortedBy { it.difficulty ?: 3 } // Handle null difficulty
+            SortOption.Alphabetical -> filtered.sortedBy { flashcard -> flashcard.frenchWord }
+            SortOption.Recent -> filtered.sortedByDescending { flashcard -> flashcard.creationDate }
+            SortOption.Difficulty -> filtered.sortedBy { flashcard -> flashcard.difficulty ?: 3 } // Handle null difficulty
+            else -> filtered // Ensure exhaustiveness, defaults to unsorted if new options are added
         }
         CardManagementUiState(
             displayedCards = sorted,
             searchQuery = query,
             sortOption = sort,
             selectedCardIds = selectedIds,
-            isLoading = loading, // Reflect initial loading until first combine
-            sortMenuExpanded = sortMenuExpanded
+            isLoading = isLoadingValue, // Use the value from the _isLoading flow
+            sortMenuExpanded = sortMenuExpandedValue
         )
     }.stateIn(
         scope = viewModelScope,
