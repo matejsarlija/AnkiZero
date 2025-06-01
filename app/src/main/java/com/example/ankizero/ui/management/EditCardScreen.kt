@@ -44,7 +44,7 @@ fun EditCardScreen(
     // onUpdateCard: (Flashcard) -> Unit // To be used when ViewModel is integrated
 ) {
     var frenchWord by remember { mutableStateOf(cardToEdit.frenchWord) }
-    var englishTranslation by remember { mutableState of(cardToEdit.englishTranslation) }
+    var englishTranslation by remember { mutableStateOf(cardToEdit.englishTranslation) }
     // var pronunciation by remember { mutableStateOf(cardToEdit.pronunciation ?: "") } // Removed
     // var exampleSentence by remember { mutableStateOf(cardToEdit.example ?: "") } // Removed
     var notes by remember { mutableStateOf(cardToEdit.notes ?: "") }
