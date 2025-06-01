@@ -2,6 +2,7 @@ package com.example.ankizero
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.Application
 import android.content.Context
 import android.os.Build
 import android.os.Bundle
@@ -11,6 +12,9 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.EditNote // Changed from List
@@ -25,12 +29,16 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text // Renamed M3Text to Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.compose.material3.Button // For Test Crash button
 import androidx.compose.foundation.layout.Column // For layout with Test Crash button
 import com.example.ankizero.util.AppLogger // For logging the crash simulation
-// Removed ImageVector import as it's part of Icons
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy // Added
 import androidx.navigation.NavGraph.Companion.findStartDestination // Added
@@ -90,7 +98,7 @@ class MainActivity : ComponentActivity() {
         // createNotificationChannel() // Moved to AnkiZeroApplication
 
         val database = AppDatabase.getDatabase(applicationContext)
-        val repository = FlashcardRepository(database.flashcardDao())
+        val repository = FlashcardRepository(database.flashCardDao())
 
         setContent {
             AnkiZeroTheme {
@@ -192,7 +200,7 @@ fun AnkiZeroApp(applicationContext: Context, repository: FlashcardRepository) { 
                     // Pass navigation actions using NavController and Screen constants
                     onNavigateToCreateCard = { navController.navigate(Screen.CreateCard) },
                     onNavigateToEditCard = { cardId ->
-                        navController.navigate(Screen.EditCard.routeWithArg(cardId))
+                        navController.navigate(Screen.getEditCardRouteWithArg(cardId))
                     }
                 )
             }

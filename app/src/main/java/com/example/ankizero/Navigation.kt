@@ -6,7 +6,7 @@ object Screen {
     const val OcrScan = "ocr_scan" // Placeholder
     const val CreateCard = "create_card"
     const val EditCard = "edit_card" // Base route for edit
-    fun EditCard.routeWithArg(cardId: Long): String = "$EditCard/$cardId" // Keep this helper
+    fun getEditCardRouteWithArg(cardId: Long): String = "$EditCard/$cardId"
     const val editCardArg = "cardId" // Keep this constant
     val EditCardRoute = "$EditCard/{$editCardArg}" // Keep this route pattern
 }
