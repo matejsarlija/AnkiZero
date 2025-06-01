@@ -62,14 +62,13 @@ class CardManagementViewModel(
                 flashcard.englishTranslation.contains(query, ignoreCase = true)
             }
         }
-        val sorted = when (sort) {
+        val sortedList: List<Flashcard> = when (sort) {
             SortOption.Alphabetical -> filtered.sortedBy { flashcard -> flashcard.frenchWord }
             SortOption.Recent -> filtered.sortedByDescending { flashcard -> flashcard.creationDate }
             SortOption.Difficulty -> filtered.sortedBy { flashcard -> flashcard.difficulty ?: 3 } // Handle null difficulty
-            else -> filtered // Ensure exhaustiveness, defaults to unsorted if new options are added
         }
         CardManagementUiState(
-            displayedCards = sorted,
+            displayedCards = sortedList,
             searchQuery = query,
             sortOption = sort,
             selectedCardIds = selectedIds,

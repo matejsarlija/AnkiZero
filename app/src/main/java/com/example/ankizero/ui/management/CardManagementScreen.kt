@@ -23,6 +23,7 @@ import com.example.ankizero.R // Added for R.string
 import androidx.compose.ui.unit.dp
 import android.app.Application
 import androidx.compose.ui.platform.LocalContext
+import com.example.ankizero.data.database.AppDatabase
 import com.example.ankizero.data.repository.FlashcardRepository
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -51,8 +52,8 @@ enum class SortOption {
 fun CardManagementScreen(
     // Updated to provide application and repository to the factory
     application: Application = LocalContext.current.applicationContext as Application,
-    repository: FlashcardRepository = FlashcardRepository(application), // Assuming FlashcardRepository can be created like this
-    viewModel: CardManagementViewModel = viewModel(factory = CardManagementViewModelFactory(application, repository)),
+    repository: FlashcardRepository = FlashcardRepository(AppDatabase.getDatabase(application).flashCardDao()), // Assuming FlashcardRepository can be created like this
+    viewModel: CardManagementViewModel = viewModel(factory = CardManagementViewModelFactory(application)),
     onNavigateToEditCard: (Long) -> Unit = {},
     onNavigateToCreateCard: () -> Unit = {}
 ) {
@@ -266,7 +267,7 @@ val previewFlashcardsForScreen = List(5) { index ->
 fun CardManagementScreenPreviewLight() {
     val context = LocalContext.current
     val application = context.applicationContext as Application
-    val repository = FlashcardRepository(application)
+    val repository = FlashcardRepository(AppDatabase.getDatabase(application).flashCardDao())
     MaterialTheme(colorScheme = lightColorScheme()) {
         CardManagementScreen(application = application, repository = repository) // Uses default VM from factory which has initial data
     }
@@ -277,7 +278,7 @@ fun CardManagementScreenPreviewLight() {
 fun CardManagementScreenPreviewDark() {
     val context = LocalContext.current
     val application = context.applicationContext as Application
-    val repository = FlashcardRepository(application)
+    val repository = FlashcardRepository(AppDatabase.getDatabase(application).flashCardDao())
     MaterialTheme(colorScheme = darkColorScheme()) {
         CardManagementScreen(application = application, repository = repository)
     }
