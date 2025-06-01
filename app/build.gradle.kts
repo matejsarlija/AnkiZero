@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     id("com.google.devtools.ksp")
     alias(libs.plugins.compose.compiler)
+    //id("com.google.gms.google-services")
     alias(libs.plugins.google.services) // Apply Google Services plugin
     alias(libs.plugins.firebase.crashlytics) // Apply Firebase Crashlytics plugin
 }
@@ -43,6 +44,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

@@ -1,15 +1,13 @@
-// TODO: Replace this with your actual google-services.json file from your Firebase project.
 {
   "project_info": {
-    "project_number": "000000000000",
-    "firebase_url": "https://your-project-name.firebaseio.com",
-    "project_id": "your-project-name",
-    "storage_bucket": "your-project-name.appspot.com"
+    "project_number": "283541725461",
+    "project_id": "ankizero-fda63",
+    "storage_bucket": "ankizero-fda63.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
+        "mobilesdk_app_id": "1:283541725461:android:fa010c0107ccfa7c6b491c",
         "android_client_info": {
           "package_name": "com.example.ankizero"
         }
@@ -17,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "YOUR_API_KEY_PLACEHOLDER"
+          "current_key": "AIzaSyA-fsH2wPCdKCxuyEHWelhKgle5X_Kg5AM"
         }
       ],
       "services": {
