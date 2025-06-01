@@ -51,7 +51,7 @@ class CardManagementViewModel(
         _selectedCardIds,
         _isLoading, // This is the StateFlow<Boolean> for loading state
         _sortMenuExpanded
-    ) { cards, query, sort, selectedIds, isLoadingValue, sortMenuExpandedValue -> // Renamed params for clarity
+    ) { cards: List<Flashcard>, query: String, sort: SortOption, selectedIds: Set<Long>, isLoadingValue: Boolean, sortMenuExpandedValue: Boolean -> // Renamed params for clarity
         // isLoadingValue is the current state of _isLoading.value
         // The side-effect _isLoading.value = false was removed from here.
         val filtered = if (query.isBlank()) {

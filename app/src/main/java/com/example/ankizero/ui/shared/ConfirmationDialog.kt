@@ -6,7 +6,8 @@ import androidx.compose.material3.TextButton // Using TextButton for dialog acti
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.material3.MaterialTheme // For preview theming
-import com.example.ankizero.ui.theme.darkColorScheme // Added import
+// import com.example.ankizero.ui.theme.darkColorScheme // Removed import
+import androidx.compose.material3.darkColorScheme // Added import
 
 @Composable
 fun ConfirmationDialog(
@@ -54,7 +55,7 @@ fun ConfirmationDialogPreviewLight() {
 @Preview(showBackground = true, name = "Confirmation Dialog Dark")
 @Composable
 fun ConfirmationDialogPreviewDark() {
-    MaterialTheme(colorScheme = darkColorScheme()) { // Example of dark theme
+    MaterialTheme(colorScheme = androidx.compose.material3.darkColorScheme()) { // Example of dark theme
         ConfirmationDialog(
             showDialog = true,
             title = "Delete Item",
