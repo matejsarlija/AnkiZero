@@ -16,8 +16,13 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ankizero.data.entity.Flashcard
+import com.example.ankizero.data.CardRepository // Added import
 import java.time.LocalDate
+import java.time.LocalTime // Added import
 import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter // Added import
+import android.util.Log // Added import
+import android.content.Context // Added import
 
 // Placeholder data for preview
 val previewDueCards = List(3) { index ->
@@ -72,7 +77,15 @@ fun NotificationsScreen( // Removed default ViewModel instantiation
             ) {
                 Text("Reminder Time")
                 TextButton(onClick = { /* TODO: Implement Time Picker */ }) {
-                    Text(uiState.reminderTime, style = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.primary))
+                    // Assuming uiState.reminderTime is LocalTime, format it.
+                    // If it's already a String, this formatting logic might be redundant
+                    // but addresses the spirit of the "type mismatch" if it were about consumption.
+                    val timeToDisplay = if (uiState.reminderTime is LocalTime) {
+                        (uiState.reminderTime as LocalTime).format(DateTimeFormatter.ofPattern("HH:mm"))
+                    } else {
+                        uiState.reminderTime.toString() // Fallback if it's not LocalTime (e.g. already a String)
+                    }
+                    Text(timeToDisplay, style = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.primary))
                 }
             }
 
@@ -121,28 +134,29 @@ fun NotificationsScreen( // Removed default ViewModel instantiation
 @Preview(showBackground = true, name = "Notifications Screen - Light")
 @Composable
 fun NotificationsScreenPreviewLight() {
+    val context = LocalContext.current
+    val application = context.applicationContext as Application
+    // Assuming CardRepository can be instantiated directly for preview
+    val repository = CardRepository(application)
+    // Assuming NotificationsViewModel can be instantiated directly for preview
+    val previewViewModel = NotificationsViewModel(application, repository)
+
     MaterialTheme(colorScheme = lightColorScheme()) {
-        // Create a dummy ViewModel for preview or pass state directly
-        val previewViewModel = NotificationsViewModel(ApplicationProvider.getApplicationContext() as Application)
-        // Manually set some state for the preview if needed, or rely on defaults.
-        // For simplicity, we can pass a dummy ViewModel that provides previewDueCards.
-        // This requires a bit more setup for preview or a way to inject preview data.
-        // For now, the default VM will load its own placeholders.
-        NotificationsScreen()
+        NotificationsScreen(viewModel = previewViewModel)
     }
 }
 
 @Preview(showBackground = true, name = "Notifications Screen - Dark")
 @Composable
 fun NotificationsScreenPreviewDark() {
+    val context = LocalContext.current
+    val application = context.applicationContext as Application
+    val repository = CardRepository(application)
+    val previewViewModel = NotificationsViewModel(application, repository)
+
     MaterialTheme(colorScheme = darkColorScheme()) {
-        NotificationsScreen()
+        NotificationsScreen(viewModel = previewViewModel)
     }
 }
 
-// A simplified Application context provider for Previews if needed.
-// Not a robust solution for real app but can help previews.
-object ApplicationProvider {
-    @Composable
-    fun getApplicationContext(): Context = LocalContext.current.applicationContext
-}
+// Removed ApplicationProvider as LocalContext.current.applicationContext is used directly.

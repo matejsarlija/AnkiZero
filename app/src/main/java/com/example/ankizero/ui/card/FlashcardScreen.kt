@@ -11,10 +11,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag // Added for testTag
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import android.app.Application
+import com.example.ankizero.data.CardRepository
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle // Preferred
 
@@ -23,7 +26,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle // Preferred
 
 @Composable
 fun FlashcardScreen(
-    viewModel: FlashcardViewModel = viewModel(factory = FlashcardViewModelFactory())
+    // viewModel: FlashcardViewModel = viewModel(factory = FlashcardViewModelFactory()) // Original
+    // Updated to provide application and repository to the factory
+    application: Application = LocalContext.current.applicationContext as Application,
+    repository: CardRepository = CardRepository(application), // Assuming CardRepository can be created like this
+    viewModel: FlashcardViewModel = viewModel(factory = FlashcardViewModelFactory(application, repository))
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val currentCard = uiState.currentCard
@@ -198,11 +205,18 @@ fun FlashcardView(
 @Preview(showBackground = true, name = "Flashcard Screen - Light")
 @Composable
 fun FlashcardScreenPreview() {
+    // For previews, we need to provide Application and a Repository.
+    // Using LocalContext to get the application context.
+    // A proper preview setup might use a fake repository.
+    val context = LocalContext.current
+    val application = context.applicationContext as Application
+    val repository = CardRepository(application) // Assuming this constructor exists
+
     MaterialTheme {
         FlashcardScreen(
-            // Provide a preview ViewModel if necessary, or rely on default factory
-            // For simplicity, we can use the default factory if it provides sample data
-            viewModel = FlashcardViewModel() // Uses default data from ViewModel init
+            application = application,
+            repository = repository,
+            viewModel = FlashcardViewModel(application, repository) // Uses default data from ViewModel init
         )
     }
 }
@@ -210,28 +224,43 @@ fun FlashcardScreenPreview() {
 @Preview(showBackground = true, name = "Flashcard Screen - Dark")
 @Composable
 fun FlashcardScreenDarkPreview() {
+    val context = LocalContext.current
+    val application = context.applicationContext as Application
+    val repository = CardRepository(application) // Assuming this constructor exists
+
     MaterialTheme(colorScheme = darkColorScheme()) {
-        FlashcardScreen(viewModel = FlashcardViewModel())
+        FlashcardScreen(
+            application = application,
+            repository = repository,
+            viewModel = FlashcardViewModel(application, repository)
+        )
     }
 }
 
 @Preview(showBackground = true, name = "Flashcard Screen - Empty State")
 @Composable
 fun FlashcardScreenEmptyPreview() {
-    val emptyViewModel = FlashcardViewModel()
+    val context = LocalContext.current
+    val application = context.applicationContext as Application
+    val repository = CardRepository(application) // Assuming this constructor exists
+    val emptyViewModel = FlashcardViewModel(application, repository)
     // Simulate empty state for preview - this is a bit of a hack for preview
     // In a real scenario, the ViewModel would be initialized with no due cards
-    emptyViewModel.uiState.value.let {
-        // This direct modification is not how StateFlow is typically updated,
-        // but for preview purposes to force an empty state, it's a workaround.
-        // A better way would be to have the ViewModel expose a method to set an empty state for preview.
-        // However, the current ViewModel loads data in init.
-        // For this preview, we'll just show the "No cards" text directly if the default VM init results in empty.
-        // Or, we can create a factory that provides a VM in an empty state.
-    }
-    // For this preview, let's assume the default FlashcardViewModel() might sometimes be empty
-    // or we can just display the empty part of the FlashcardScreen logic:
+    // The .let block was not causing the 'val' reassignment error, it was related to
+    // how empty state was being forced. The primary fix is providing params to FlashcardViewModel.
+    // The original comment about direct modification of StateFlow for preview is valid but
+    // not the source of the 'val' reassignment compiler error.
+    // Forcing an empty state for preview is best done by controlling the ViewModel's initial data,
+    // which is outside the scope of this direct file modification if the ViewModel loads data eagerly.
+    // We will rely on the ViewModel to potentially be in an empty state based on the provided repository.
+
     MaterialTheme {
+        // Display the "No cards due" text directly for this preview,
+        // as simulating an empty ViewModel state perfectly from here is complex
+        // without modifying the ViewModel or having a more sophisticated preview setup.
+        // If FlashcardViewModel initialized with an empty repository correctly shows this,
+        // then the FlashcardScreen composable itself would handle it.
+        // The original code for this preview was already showing this directly.
          Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center

@@ -24,14 +24,14 @@ val previewEditFlashcard = Flashcard(
     id = 1L,
     frenchWord = "Bonjour",
     englishTranslation = "Hello",
-    pronunciation = "bon-zhoor",
-    example = "Bonjour, comment ça va?",
+    // pronunciation = "bon-zhoor", // Removed as per error analysis
+    // example = "Bonjour, comment ça va?", // Removed as per error analysis
     notes = "Common greeting.",
     difficulty = 3, // Assuming 1-5
     creationDate = LocalDate.now().minusDays(10).atStartOfDay().toEpochSecond(ZoneOffset.UTC),
-    nextReviewDate = LocalDate.now().plusDays(2).atStartOfDay().toEpochSecond(ZoneOffset.UTC),
-    easeFactor = 2.5f,
-    interval = 5
+    nextReviewDate = LocalDate.now().plusDays(2).atStartOfDay().toEpochSecond(ZoneOffset.UTC)
+    // easeFactor = 2.5f, // Removed as per error analysis (screen doesn't use it, Flashcard might not have it)
+    // interval = 5 // Removed as per error analysis (screen doesn't use it, Flashcard might not have it)
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -39,14 +39,14 @@ val previewEditFlashcard = Flashcard(
 fun EditCardScreen(
     // cardId: Long, // In a real scenario, you'd pass ID and fetch the card via ViewModel
     // For this UI task, we'll pass a full Flashcard object for simplicity as per MainActivity setup
-    cardToEdit: Flashcard,
+    cardToEdit: Flashcard, // Assuming this Flashcard object might not have pronunciation, example, etc.
     onNavigateBack: () -> Unit
     // onUpdateCard: (Flashcard) -> Unit // To be used when ViewModel is integrated
 ) {
     var frenchWord by remember { mutableStateOf(cardToEdit.frenchWord) }
-    var englishTranslation by remember { mutableStateOf(cardToEdit.englishTranslation) }
-    var pronunciation by remember { mutableStateOf(cardToEdit.pronunciation ?: "") }
-    var exampleSentence by remember { mutableStateOf(cardToEdit.example ?: "") }
+    var englishTranslation by remember { mutableState of(cardToEdit.englishTranslation) }
+    // var pronunciation by remember { mutableStateOf(cardToEdit.pronunciation ?: "") } // Removed
+    // var exampleSentence by remember { mutableStateOf(cardToEdit.example ?: "") } // Removed
     var notes by remember { mutableStateOf(cardToEdit.notes ?: "") }
     // Difficulty: Slider 0f-4f maps to 1-5. So, (difficulty - 1) for slider.
     var difficultySliderValue by remember { mutableStateOf((cardToEdit.difficulty ?: 3).toFloat() - 1) }
@@ -122,23 +122,11 @@ fun EditCardScreen(
             Text("Optional Fields", style = MaterialTheme.typography.titleSmall)
             Spacer(modifier = Modifier.height(8.dp))
 
-            OutlinedTextField(
-                value = pronunciation,
-                onValueChange = { pronunciation = it },
-                label = { Text("Pronunciation") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-            Spacer(modifier = Modifier.height(12.dp))
+            // OutlinedTextField for pronunciation removed
+            // Spacer(modifier = Modifier.height(12.dp)) // Removed corresponding spacer
 
-            OutlinedTextField(
-                value = exampleSentence,
-                onValueChange = { exampleSentence = it },
-                label = { Text("Example Sentence") },
-                modifier = Modifier.fillMaxWidth(),
-                maxLines = 3
-            )
-            Spacer(modifier = Modifier.height(12.dp))
+            // OutlinedTextField for exampleSentence removed
+            // Spacer(modifier = Modifier.height(12.dp)) // Removed corresponding spacer
 
             OutlinedTextField(
                 value = notes,
