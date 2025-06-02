@@ -31,8 +31,8 @@ val previewDueCards = List(3) { index ->
         id = index.toLong(),
         frenchWord = "Mot Français Due ${index + 1}",
         englishTranslation = "English Word Due ${index + 1}",
-        creationDate = LocalDate.now().minusDays(10).toEpochSecond(ZoneOffset.UTC),
-        nextReviewDate = LocalDate.now().toEpochSecond(ZoneOffset.UTC)
+        creationDate = LocalDate.now().minusDays(10).atStartOfDay().toEpochSecond(ZoneOffset.UTC),
+        nextReviewDate = LocalDate.now().atStartOfDay().toEpochSecond(ZoneOffset.UTC)
     )
 }
 

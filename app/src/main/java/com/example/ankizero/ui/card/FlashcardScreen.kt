@@ -135,7 +135,7 @@ fun FlashcardView(
     onSwipeRight: () -> Unit
 ) {
     var flipped by remember { mutableStateOf(false) }
-    val rotationY by animateFloatAsState(
+    val animatedRotationY by animateFloatAsState(
         targetValue = if (flipped) 180f else 0f,
         animationSpec = tween(durationMillis = 600), // Slightly longer for smoother feel
         label = "rotationY"
@@ -148,7 +148,7 @@ fun FlashcardView(
             .fillMaxWidth(0.85f)
             .aspectRatio(1.6f)
             .graphicsLayer {
-                this.rotationY = rotationY
+                this.rotationY = animatedRotationY
                 // Improve perspective for 3D effect
                 this.cameraDistance = 12f * density
                 // Apply horizontal translation based on drag for swipe feedback
@@ -180,7 +180,7 @@ fun FlashcardView(
             contentAlignment = Alignment.Center
         ) {
             // Content changes based on the flip animation progress
-            if (rotationY <= 90f || rotationY >= 270f) { // Show front when mostly front-facing
+            if (animatedRotationY <= 90f || animatedRotationY >= 270f) { // Show front when mostly front-facing
                 Text(
                     text = frontText,
                     style = MaterialTheme.typography.headlineSmall,
