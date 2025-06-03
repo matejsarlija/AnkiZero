@@ -51,7 +51,7 @@ class CardManagementViewModel(
         _selectedCardIds,
         _isLoading, // This is the StateFlow<Boolean> for loading state
         _sortMenuExpanded
-    ) { suspend values: Array<*> ->
+    ) { values: Array<*> ->
         val cards = values[0] as List<Flashcard>
         val query = values[1] as String
         val sort = values[2] as SortOption
