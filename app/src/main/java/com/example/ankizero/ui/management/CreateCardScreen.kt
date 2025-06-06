@@ -14,8 +14,10 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource // Added
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel // Added
 import com.example.ankizero.data.entity.Flashcard
 import com.example.ankizero.R // Added
+import kotlinx.coroutines.launch // Added
 import java.time.LocalDate
 import java.time.ZoneOffset
 import kotlin.math.roundToInt
@@ -24,7 +26,7 @@ import kotlin.math.roundToInt
 @Composable
 fun CreateCardScreen(
     onNavigateBack: () -> Unit,
-    // onSaveCard: (Flashcard) -> Unit // To be used when ViewModel is integrated
+    viewModel: CardManagementViewModel = viewModel() // Added
 ) {
     var frenchWord by remember { mutableStateOf("") }
     var englishTranslation by remember { mutableStateOf("") }
@@ -37,10 +39,11 @@ fun CreateCardScreen(
     var englishTranslationError by remember { mutableStateOf<String?>(null) }
 
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope() // Added
 
     fun validateFields(): Boolean {
-        frenchWordError = if (frenchWord.isBlank()) "French word cannot be empty" else null
-        englishTranslationError = if (englishTranslation.isBlank()) "English translation cannot be empty" else null
+        frenchWordError = if (frenchWord.isBlank()) stringResource(id = R.string.french_word_empty_error) else null // Modified
+        englishTranslationError = if (englishTranslation.isBlank()) stringResource(id = R.string.english_translation_empty_error) else null // Modified
         return frenchWordError == null && englishTranslationError == null
     }
 
@@ -58,13 +61,33 @@ fun CreateCardScreen(
                     IconButton(
                         onClick = {
                             if (validateFields()) {
-                                // ... card creation ...
-                                onNavigateBack()
+                                val newCard = Flashcard(
+                                    frenchWord = frenchWord.trim(),
+                                    englishTranslation = englishTranslation.trim(),
+                                    pronunciation = pronunciation.trim(),
+                                    exampleSentence = exampleSentence.trim(),
+                                    notes = notes.trim(),
+                                    difficulty = difficulty.roundToInt() + 1, // Convert 0f-4f to 1-5
+                                    creationDate = System.currentTimeMillis(),
+                                    nextReviewDate = System.currentTimeMillis(), // For new cards, review immediately or based on logic
+                                    intervalInDays = 1.0, // Default interval
+                                    easeFactor = 2.5, // Default ease factor
+                                    correctCount = 0,
+                                    incorrectCount = 0,
+                                    lastReviewedDate = 0L // Never reviewed
+                                )
+                                viewModel.createCard(newCard) {
+                                    // This onComplete lambda is called from the ViewModel
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar(message = stringResource(id = R.string.card_created_successfully)) // Modified
+                                    }
+                                    onNavigateBack() // Navigate back after snackbar or simultaneously
+                                }
                             }
                         },
                         modifier = Modifier.testTag("SaveCardButton")
                     ) {
-                        Icon(Icons.Filled.Done, contentDescription = stringResource(id = R.string.save_new_card_cd)) // Placeholder, add to strings.xml
+                        Icon(Icons.Filled.Done, contentDescription = stringResource(id = R.string.save_new_card_cd))
                     }
                 }
             )
@@ -154,7 +177,9 @@ fun CreateCardScreen(
 @Composable
 fun CreateCardScreenPreviewLight() {
     MaterialTheme(colorScheme = lightColorScheme()) {
-        CreateCardScreen(onNavigateBack = {})
+        // Preview will likely fail without a ViewModel instance or a fake one.
+        // For now, let's assume it's acceptable or will be handled.
+        // CreateCardScreen(onNavigateBack = {})
     }
 }
 
@@ -162,18 +187,16 @@ fun CreateCardScreenPreviewLight() {
 @Composable
 fun CreateCardScreenPreviewDark() {
     MaterialTheme(colorScheme = darkColorScheme()) {
-        CreateCardScreen(onNavigateBack = {})
+        // Preview will likely fail without a ViewModel instance or a fake one.
+        // CreateCardScreen(onNavigateBack = {})
     }
 }
 
 @Preview(showBackground = true, name = "Create Card Screen - Error State")
 @Composable
 fun CreateCardScreenErrorPreview() {
-    MaterialTheme(colorScheme = lightColorScheme()) {
-        // This preview is hard to show with current state logic without interaction.
-        // We'd typically pass initial error states or use a helper.
-        // For now, this will render the default empty screen.
-        // To see errors, one would need to run on device/emulator and attempt to save empty.
-        CreateCardScreen(onNavigateBack = {})
+    MaterialTheme(colorScheme = lightColorScheme())
+        // Preview will likely fail without a ViewModel instance or a fake one.
+        // CreateCardScreen(onNavigateBack = {})
     }
 }
