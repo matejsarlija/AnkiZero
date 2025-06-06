@@ -176,6 +176,6 @@ fun EditCardScreen(
             )
         }
     }
-}
+}}
 
 // All @Preview functions removed to fix syntax error and as they are non-essential.
