@@ -86,7 +86,7 @@ fun EditCardScreen(
                                 val updatedCard = cardToEditState!!.copy(
                                     frenchWord = frenchWord.trim(),
                                     englishTranslation = englishTranslation.trim(),
-                                    notes = notes.trim(),
+                                    notes = notes.trim().ifEmpty { null }, // Ensure null if empty
                                     difficulty = difficultySliderValue.roundToInt() + 1 // Convert 0f-4f to 1-5
                                 )
                                 viewModel.updateCard(updatedCard) {
@@ -178,18 +178,4 @@ fun EditCardScreen(
     }
 }
 
-// @Preview(showBackground = true, name = "Edit Card Screen - Light") // Commented out
-// @Composable
-// fun EditCardScreenPreviewLight() {
-//     MaterialTheme(colorScheme = lightColorScheme()) {
-//         // EditCardScreen(cardId = 1L, onNavigateBack = {}) // Needs ViewModel for preview
-//     }
-// }
-
-// @Preview(showBackground = true, name = "Edit Card Screen - Dark") // Commented out
-// @Composable
-// fun EditCardScreenPreviewDark() {
-//     MaterialTheme(colorScheme = darkColorScheme()) {
-//         // EditCardScreen(cardId = 1L, onNavigateBack = {}) // Needs ViewModel for preview
-//     }
-// }
+// All @Preview functions removed to fix syntax error and as they are non-essential.

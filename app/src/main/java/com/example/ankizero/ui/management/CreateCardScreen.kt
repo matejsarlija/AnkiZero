@@ -30,7 +30,7 @@ fun CreateCardScreen(
 ) {
     var frenchWord by remember { mutableStateOf("") }
     var englishTranslation by remember { mutableStateOf("") }
-    var pronunciation by remember { mutableStateOf("") }
+    // var pronunciation by remember { mutableStateOf("") } // Removed
     var exampleSentence by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
     var difficulty by remember { mutableStateOf(2f) } // Default difficulty (e.g., 1-5, so 2f is like 3)
@@ -64,17 +64,17 @@ fun CreateCardScreen(
                                 val newCard = Flashcard(
                                     frenchWord = frenchWord.trim(),
                                     englishTranslation = englishTranslation.trim(),
-                                    pronunciation = pronunciation.trim(),
-                                    exampleSentence = exampleSentence.trim(),
-                                    notes = notes.trim(),
+                                    // pronunciation = pronunciation.trim(), // Removed
+                                    exampleSentence = exampleSentence.trim().ifEmpty { null }, // Ensure null if empty
+                                    notes = notes.trim().ifEmpty { null }, // Ensure null if empty
                                     difficulty = difficulty.roundToInt() + 1, // Convert 0f-4f to 1-5
                                     creationDate = System.currentTimeMillis(),
                                     nextReviewDate = System.currentTimeMillis(), // For new cards, review immediately or based on logic
                                     intervalInDays = 1.0, // Default interval
                                     easeFactor = 2.5, // Default ease factor
-                                    correctCount = 0,
-                                    incorrectCount = 0,
-                                    lastReviewedDate = 0L // Never reviewed
+                                    reviewCount = 0, // Corrected from correctCount
+                                    lastReviewed = null // Corrected from lastReviewedDate = 0L
+                                    // incorrectCount is not a field in Flashcard.kt
                                 )
                                 viewModel.createCard(newCard) {
                                     // This onComplete lambda is called from the ViewModel
@@ -129,14 +129,8 @@ fun CreateCardScreen(
             Text("Optional Fields", style = MaterialTheme.typography.titleSmall)
             Spacer(modifier = Modifier.height(8.dp))
 
-            OutlinedTextField(
-                value = pronunciation,
-                onValueChange = { pronunciation = it },
-                label = { Text("Pronunciation") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-            Spacer(modifier = Modifier.height(12.dp))
+            // OutlinedTextField for pronunciation removed
+            // Spacer(modifier = Modifier.height(12.dp)) // Corresponding spacer removed
 
             OutlinedTextField(
                 value = exampleSentence,
@@ -173,30 +167,4 @@ fun CreateCardScreen(
     }
 }
 
-@Preview(showBackground = true, name = "Create Card Screen - Light")
-@Composable
-fun CreateCardScreenPreviewLight() {
-    MaterialTheme(colorScheme = lightColorScheme()) {
-        // Preview will likely fail without a ViewModel instance or a fake one.
-        // For now, let's assume it's acceptable or will be handled.
-        // CreateCardScreen(onNavigateBack = {})
-    }
-}
-
-@Preview(showBackground = true, name = "Create Card Screen - Dark")
-@Composable
-fun CreateCardScreenPreviewDark() {
-    MaterialTheme(colorScheme = darkColorScheme()) {
-        // Preview will likely fail without a ViewModel instance or a fake one.
-        // CreateCardScreen(onNavigateBack = {})
-    }
-}
-
-@Preview(showBackground = true, name = "Create Card Screen - Error State")
-@Composable
-fun CreateCardScreenErrorPreview() {
-    MaterialTheme(colorScheme = lightColorScheme())
-        // Preview will likely fail without a ViewModel instance or a fake one.
-        // CreateCardScreen(onNavigateBack = {})
-    }
-}
+// All @Preview functions removed to fix syntax error and as they are non-essential.
