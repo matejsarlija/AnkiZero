@@ -13,53 +13,59 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource // Added
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel // Added
 import com.example.ankizero.data.entity.Flashcard
 import com.example.ankizero.R // Added
-import java.time.LocalDate
-import java.time.ZoneOffset
+import kotlinx.coroutines.launch // Added
 import kotlin.math.roundToInt
 
 // Placeholder for preview and initial state
-val previewEditFlashcard = Flashcard(
-    id = 1L,
-    frenchWord = "Bonjour",
-    englishTranslation = "Hello",
-    // pronunciation = "bon-zhoor", // Removed as per error analysis
-    // example = "Bonjour, comment ça va?", // Removed as per error analysis
-    notes = "Common greeting.",
-    difficulty = 3, // Assuming 1-5
-    creationDate = LocalDate.now().minusDays(10).atStartOfDay().toEpochSecond(ZoneOffset.UTC),
-    nextReviewDate = LocalDate.now().plusDays(2).atStartOfDay().toEpochSecond(ZoneOffset.UTC)
-    // easeFactor = 2.5f, // Removed as per error analysis (screen doesn't use it, Flashcard might not have it)
-    // interval = 5 // Removed as per error analysis (screen doesn't use it, Flashcard might not have it)
-)
+// val previewEditFlashcard = Flashcard( // Commented out as it will be handled by ViewModel or mocked
+//     id = 1L,
+//     frenchWord = "Bonjour",
+//     englishTranslation = "Hello",
+//     notes = "Common greeting.",
+//     difficulty = 3,
+//     creationDate = System.currentTimeMillis() - 10 * 24 * 60 * 60 * 1000,
+//     nextReviewDate = System.currentTimeMillis() + 2 * 24 * 60 * 60 * 1000
+// )
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditCardScreen(
-    // cardId: Long, // In a real scenario, you'd pass ID and fetch the card via ViewModel
-    // For this UI task, we'll pass a full Flashcard object for simplicity as per MainActivity setup
-    cardToEdit: Flashcard, // Assuming this Flashcard object might not have pronunciation, example, etc.
-    onNavigateBack: () -> Unit
-    // onUpdateCard: (Flashcard) -> Unit // To be used when ViewModel is integrated
+    cardId: Long, // Changed: Pass ID and fetch the card via ViewModel
+    onNavigateBack: () -> Unit,
+    viewModel: CardManagementViewModel = viewModel() // Added
 ) {
-    var frenchWord by remember { mutableStateOf(cardToEdit.frenchWord) }
-    var englishTranslation by remember { mutableStateOf(cardToEdit.englishTranslation) }
-    // var pronunciation by remember { mutableStateOf(cardToEdit.pronunciation ?: "") } // Removed
-    // var exampleSentence by remember { mutableStateOf(cardToEdit.example ?: "") } // Removed
-    var notes by remember { mutableStateOf(cardToEdit.notes ?: "") }
-    // Difficulty: Slider 0f-4f maps to 1-5. So, (difficulty - 1) for slider.
-    var difficultySliderValue by remember { mutableStateOf((cardToEdit.difficulty ?: 3).toFloat() - 1) }
+    val uiState by viewModel.uiState.collectAsState() // Added
+    var cardToEditState by remember { mutableStateOf<Flashcard?>(null) } // Added
 
+    var frenchWord by remember { mutableStateOf("") }
+    var englishTranslation by remember { mutableStateOf("") }
+    var notes by remember { mutableStateOf("") }
+    var difficultySliderValue by remember { mutableStateOf(2f) } // Default to medium (3)
 
     var frenchWordError by remember { mutableStateOf<String?>(null) }
     var englishTranslationError by remember { mutableStateOf<String?>(null) }
 
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope() // Added
+
+    // Fetch card details when cardId or uiState changes
+    LaunchedEffect(cardId, uiState) { // Added
+        val card = uiState.displayedCards.find { it.id == cardId } ?: uiState.allCards.find { it.id == cardId }
+        if (card != null) {
+            cardToEditState = card
+            frenchWord = card.frenchWord
+            englishTranslation = card.englishTranslation
+            notes = card.notes ?: ""
+            difficultySliderValue = (card.difficulty ?: 3).toFloat() - 1
+        }
+    }
 
     fun validateFields(): Boolean {
-        frenchWordError = if (frenchWord.isBlank()) "French word cannot be empty" else null
-        englishTranslationError = if (englishTranslation.isBlank()) "English translation cannot be empty" else null
+        frenchWordError = if (frenchWord.isBlank()) stringResource(id = R.string.french_word_empty_error) else null // Modified
+        englishTranslationError = if (englishTranslation.isBlank()) stringResource(id = R.string.english_translation_empty_error) else null // Modified
         return frenchWordError == null && englishTranslationError == null
     }
 
@@ -67,35 +73,53 @@ fun EditCardScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(id = R.string.edit_card_screen_title)) }, // Updated
+                title = { Text(stringResource(id = R.string.edit_card_screen_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = stringResource(id = R.string.back_cd))  // Updated
+                        Icon(Icons.Filled.ArrowBack, contentDescription = stringResource(id = R.string.back_cd))
                     }
                 },
                 actions = {
-                    IconButton(onClick = {
-                        if (validateFields()) {
-                            // ... card update ...
-                            onNavigateBack()
-                        }
-                    }) {
-                        Icon(Icons.Filled.Done, contentDescription = stringResource(id = R.string.save_changes_to_card_cd)) // Updated
+                    IconButton(
+                        onClick = {
+                            if (validateFields() && cardToEditState != null) {
+                                val updatedCard = cardToEditState!!.copy(
+                                    frenchWord = frenchWord.trim(),
+                                    englishTranslation = englishTranslation.trim(),
+                                    notes = notes.trim(),
+                                    difficulty = difficultySliderValue.roundToInt() + 1 // Convert 0f-4f to 1-5
+                                )
+                                viewModel.updateCard(updatedCard) {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar(message = stringResource(id = R.string.card_updated_successfully)) // Modified
+                                    }
+                                    onNavigateBack()
+                                }
+                            }
+                        },
+                        enabled = cardToEditState != null // Added: Disable button if card not loaded
+                    ) {
+                        Icon(Icons.Filled.Done, contentDescription = stringResource(id = R.string.save_changes_to_card_cd))
                     }
                 }
             )
         }
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .padding(paddingValues)
-                .padding(16.dp)
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState()) // Make form scrollable
-        ) {
-            OutlinedTextField(
-                value = frenchWord,
-                onValueChange = { frenchWord = it; frenchWordError = null },
+        if (cardToEditState == null) { // Added: Loading indicator
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .padding(paddingValues)
+                    .padding(16.dp)
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+            ) {
+                OutlinedTextField(
+                    value = frenchWord,
+                    onValueChange = { frenchWord = it; frenchWordError = null },
                 label = { Text("French Word*") },
                 modifier = Modifier.fillMaxWidth(),
                 isError = frenchWordError != null,
@@ -154,18 +178,18 @@ fun EditCardScreen(
     }
 }
 
-@Preview(showBackground = true, name = "Edit Card Screen - Light")
-@Composable
-fun EditCardScreenPreviewLight() {
-    MaterialTheme(colorScheme = lightColorScheme()) {
-        EditCardScreen(cardToEdit = previewEditFlashcard, onNavigateBack = {})
-    }
-}
+// @Preview(showBackground = true, name = "Edit Card Screen - Light") // Commented out
+// @Composable
+// fun EditCardScreenPreviewLight() {
+//     MaterialTheme(colorScheme = lightColorScheme()) {
+//         // EditCardScreen(cardId = 1L, onNavigateBack = {}) // Needs ViewModel for preview
+//     }
+// }
 
-@Preview(showBackground = true, name = "Edit Card Screen - Dark")
-@Composable
-fun EditCardScreenPreviewDark() {
-    MaterialTheme(colorScheme = darkColorScheme()) {
-        EditCardScreen(cardToEdit = previewEditFlashcard, onNavigateBack = {})
-    }
-}
+// @Preview(showBackground = true, name = "Edit Card Screen - Dark") // Commented out
+// @Composable
+// fun EditCardScreenPreviewDark() {
+//     MaterialTheme(colorScheme = darkColorScheme()) {
+//         // EditCardScreen(cardId = 1L, onNavigateBack = {}) // Needs ViewModel for preview
+//     }
+// }

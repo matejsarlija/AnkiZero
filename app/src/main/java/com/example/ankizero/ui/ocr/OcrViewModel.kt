@@ -39,27 +39,41 @@ class OcrViewModel(
     val uiState: StateFlow<OcrUiState> = _uiState.asStateFlow()
 
     fun setImageUri(uri: Uri?) {
+        AppLogger.d(TAG, "setImageUri called with URI: $uri")
         _uiState.update { it.copy(imageUri = uri, detectedText = "", errorMessage = null) }
         if (uri != null) {
             // Optional: Immediately start processing if an image URI is set,
             // or wait for an explicit call to processImage.
             // For now, let's assume processImage is called explicitly.
+            AppLogger.d(TAG, "Image URI is set. Ready for processing.")
+        } else {
+            AppLogger.d(TAG, "Image URI is null.")
         }
+        AppLogger.d(TAG, "setImageUri completed.")
     }
 
     fun processImage(uri: Uri) { // Context can be obtained from getApplication()
+        AppLogger.d(TAG, "processImage called for URI: $uri")
         val context: Context = getApplication<Application>().applicationContext
-        if (_uiState.value.isLoading) return
+        if (_uiState.value.isLoading) {
+            AppLogger.d(TAG, "Already processing, skipping new request for URI: $uri")
+            return
+        }
 
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+        AppLogger.d(TAG, "UI state updated to isLoading = true.")
+
         viewModelScope.launch {
-            AppLogger.d(TAG, "Starting image processing for URI: $uri")
+            AppLogger.d(TAG, "Starting image processing coroutine for URI: $uri")
+            AppLogger.d(TAG, "URI Scheme: ${uri.scheme}") // Log URI scheme
+
             val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
             val image: InputImage
             try {
                 image = InputImage.fromFilePath(context, uri)
+                AppLogger.d(TAG, "InputImage created successfully from URI: $uri")
             } catch (e: IOException) {
-                AppLogger.e(TAG, "Failed to create InputImage from URI: $uri", e)
+                AppLogger.e(TAG, "Failed to create InputImage from URI: $uri. Error: ${e.toString()}", e) // Log e.toString()
                 com.example.ankizero.util.GlobalErrorHandler.reportError(e, "ML Kit InputImage creation failed for URI: $uri")
                 _uiState.update {
                     it.copy(
@@ -67,12 +81,13 @@ class OcrViewModel(
                         errorMessage = "Failed to load image: ${e.message}"
                     )
                 }
+                AppLogger.d(TAG, "processImage coroutine finished due to InputImage creation failure.")
                 return@launch // Exit coroutine
             }
 
             recognizer.process(image)
                 .addOnSuccessListener { visionText ->
-                    AppLogger.i(TAG, "ML Kit text recognition success. Detected text length: ${visionText.text.length}")
+                    AppLogger.i(TAG, "ML Kit text recognition success. Raw detected text: ${visionText.text}") // Log raw text
                     _uiState.update {
                         it.copy(
                             isLoading = false,
@@ -81,67 +96,92 @@ class OcrViewModel(
                             errorMessage = null // Clear any previous error
                         )
                     }
+                    AppLogger.d(TAG, "UI state updated with detected text, isLoading = false, showEditDialog = true.")
                     AnalyticsHelper.logOcrUsed(getApplication()) // Pass context
                 }
                 .addOnFailureListener { e ->
-                    AppLogger.e(TAG, "ML Kit text recognition failed.", e)
+                    AppLogger.e(TAG, "ML Kit text recognition failed. Error: ${e.toString()}", e) // Log e.toString()
                     com.example.ankizero.util.GlobalErrorHandler.reportError(e, "ML Kit text recognition failed")
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = "Text recognition failed: ${e.message}"
+                            errorMessage = "Text recognition failed: ${e.message}" // e.message is often good enough for user
                         )
                     }
+                    AppLogger.d(TAG, "UI state updated with error message, isLoading = false.")
                 }
+            AppLogger.d(TAG, "processImage coroutine finished processing logic.")
         }
     }
 
     fun showEditDialog(show: Boolean) {
+        AppLogger.d(TAG, "showEditDialog called with show: $show")
         _uiState.update { it.copy(showEditDialog = show) }
         if (!show) {
+            AppLogger.d(TAG, "Edit dialog hidden.")
             // Optionally clear text when dialog is hidden if it's not saved
             // _uiState.update { it.copy(detectedText = "") }
+        } else {
+            AppLogger.d(TAG, "Edit dialog shown.")
         }
+        AppLogger.d(TAG, "showEditDialog completed.")
     }
 
     fun saveRecognizedText(text: String) {
-        AppLogger.d(TAG, "Attempting to save recognized text: $text")
+        AppLogger.d(TAG, "saveRecognizedText called with text: \"$text\"")
         viewModelScope.launch {
-            // Basic example: Use detected text for both French and English, or prompt user for more.
-            // User might need to edit this significantly.
-            // For now, let's assume the 'text' is the French part, English part needs to be added.
-            // Or, treat the whole text as one field and let user sort it out later.
-            // A more sophisticated approach would parse the text or allow user to assign parts.
+            AppLogger.d(TAG, "Starting saveRecognizedText coroutine.")
             if (text.isNotBlank()) {
+                val frenchWord = text.lines().firstOrNull() ?: text
+                val englishTranslation = text.lines().drop(1).joinToString("\n").ifEmpty { "[Needs translation]" }
+                AppLogger.d(TAG, "Derived French: \"$frenchWord\", English: \"$englishTranslation\"")
+
                 val newCard = com.example.ankizero.data.entity.Flashcard(
-                    frenchWord = text.lines().firstOrNull() ?: text, // Take first line or whole text
-                    englishTranslation = text.lines().drop(1).joinToString("\n").ifEmpty { "[Needs translation]" }, // Rest as English
+                    frenchWord = frenchWord,
+                    englishTranslation = englishTranslation,
                     creationDate = System.currentTimeMillis(),
                     nextReviewDate = System.currentTimeMillis(), // Due immediately
                     intervalInDays = 1.0,
-                    easeFactor = 2.5,
+                    easeFactor = 2.5
                     // Other fields like pronunciation, exampleSentence, notes, difficulty can be empty/default
                 )
-                repository.insert(newCard)
-                AnalyticsHelper.logNewCardSaved(getApplication(), "ocr") // Pass context and source
-                AppLogger.i(TAG, "New card saved from OCR text.")
-                _uiState.update { it.copy(showEditDialog = false, detectedText = "", imageUri = null, errorMessage = null) }
+                AppLogger.d(TAG, "Created Flashcard object: $newCard")
+                try {
+                    repository.insert(newCard)
+                    AppLogger.i(TAG, "New card saved successfully from OCR text. Card ID likely auto-generated.")
+                    AnalyticsHelper.logNewCardSaved(getApplication(), "ocr") // Pass context and source
+                    _uiState.update { it.copy(showEditDialog = false, detectedText = "", imageUri = null, errorMessage = null) }
+                    AppLogger.d(TAG, "UI state updated after saving: dialog hidden, text/URI cleared.")
+                } catch (e: Exception) {
+                    AppLogger.e(TAG, "Failed to insert new card into repository. Error: ${e.toString()}", e)
+                    com.example.ankizero.util.GlobalErrorHandler.reportError(e, "Failed to save OCR card to database")
+                    _uiState.update {
+                        it.copy(errorMessage = "Failed to save card: ${e.message}")
+                    }
+                    AppLogger.d(TAG, "UI state updated with database error message.")
+                }
             } else {
                 AppLogger.w(TAG, "Recognized text is blank, not saving.")
-                _uiState.update { it.copy(errorMessage = "Cannot save empty text.") }
+                _uiState.update { it.copy(errorMessage = "Cannot save empty text.") } // This is already handled by existing code
+                AppLogger.d(TAG, "UI state updated with blank text error message.")
             }
+            AppLogger.d(TAG, "saveRecognizedText coroutine finished.")
         }
     }
 
     fun clearError() {
+        AppLogger.d(TAG, "clearError called.")
         _uiState.update { it.copy(errorMessage = null) }
     }
 
     fun setImageCaptureFailed(errorMsg: String) {
+        AppLogger.d(TAG, "setImageCaptureFailed called with errorMsg: $errorMsg")
         _uiState.update { it.copy(isLoading = false, errorMessage = "Capture failed: $errorMsg", imageUri = null) }
+        AppLogger.d(TAG, "setImageCaptureFailed completed.")
     }
 
     fun clearAll() {
+        AppLogger.d(TAG, "clearAll called.")
         _uiState.update { OcrUiState() } // Reset to initial state
     }
 }
