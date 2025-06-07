@@ -190,21 +190,19 @@ fun AnkiZeroApp(applicationContext: Context, repository: FlashcardRepository) { 
         ) {
             composable(Screen.Flashcards) { // Use constant
                 val application = LocalContext.current.applicationContext as Application
-                val viewModel: com.example.ankizero.ui.card.FlashcardViewModel = viewModel(
-                    factory = com.example.ankizero.ui.card.FlashcardViewModelFactory(application)
+                val flashcardRepository = LocalFlashcardRepository.current
+                FlashcardScreen(
+                    application = application,
+                    repository = flashcardRepository
                 )
-                FlashcardScreen(viewModel = viewModel)
             }
 
             composable(Screen.Management) { // Use constant
                 val application = LocalContext.current.applicationContext as Application
-                // Get repository from CompositionLocal
                 val flashcardRepository = LocalFlashcardRepository.current
-                val viewModel: com.example.ankizero.ui.management.CardManagementViewModel = viewModel(
-                    factory = com.example.ankizero.ui.management.CardManagementViewModelFactory(application, flashcardRepository) // Pass repository
-                )
                 CardManagementScreen(
-                    viewModel = viewModel,
+                    application = application,
+                    repository = flashcardRepository,
                     // Pass navigation actions using NavController and Screen constants
                     onNavigateToCreateCard = { navController.navigate(Screen.CreateCard) },
                     onNavigateToEditCard = { cardId ->
