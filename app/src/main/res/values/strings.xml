@@ -31,5 +31,6 @@
     <!-- Edit Card Screen -->
     <string name="edit_card_screen_title">Edit Card</string>
     <string name="save_changes_to_card_cd">Save changes to card</string>
+    <string name="card_not_found_error">Error: Card not found.</string>
 
 </resources>
