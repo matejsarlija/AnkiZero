@@ -17,6 +17,7 @@ import androidx.compose.ui.platform.testTag // Added for testTag
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import android.app.Application
+import com.example.ankizero.AnkiZeroApplication
 import com.example.ankizero.data.database.AppDatabase
 import com.example.ankizero.data.repository.FlashcardRepository
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -30,9 +31,11 @@ fun FlashcardScreen(
     // viewModel: FlashcardViewModel = viewModel(factory = FlashcardViewModelFactory()) // Original
     // Updated to provide application and repository to the factory
     application: Application = LocalContext.current.applicationContext as Application,
-    repository: FlashcardRepository = FlashcardRepository(AppDatabase.getDatabase(application).flashCardDao()), // Assuming FlashcardRepository can be created like this
-    viewModel: FlashcardViewModel = viewModel(factory = FlashcardViewModelFactory(application))
+    repository: FlashcardRepository
 ) {
+    val applicationContext = LocalContext.current.applicationContext as AnkiZeroApplication
+    // repository is now a parameter, no need to fetch from applicationContext here for the screen itself
+    val viewModel: FlashcardViewModel = viewModel(factory = FlashcardViewModelFactory(applicationContext, repository))
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val currentCard = uiState.currentCard
 
@@ -207,17 +210,14 @@ fun FlashcardView(
 @Composable
 fun FlashcardScreenPreview() {
     // For previews, we need to provide Application and a Repository.
-    // Using LocalContext to get the application context.
-    // A proper preview setup might use a fake repository.
-    val context = LocalContext.current
-    val application = context.applicationContext as Application
-    val repository = FlashcardRepository(AppDatabase.getDatabase(application).flashCardDao()) // Assuming this constructor exists
+    val applicationContext = LocalContext.current.applicationContext as AnkiZeroApplication
+    val repository = applicationContext.repository
 
     MaterialTheme {
         FlashcardScreen(
-            application = application,
-            repository = repository,
-            viewModel = FlashcardViewModel(application, repository) // Uses default data from ViewModel init
+            application = applicationContext,
+            repository = repository
+            // viewModel is created inside FlashcardScreen using the factory
         )
     }
 }
@@ -225,15 +225,14 @@ fun FlashcardScreenPreview() {
 @Preview(showBackground = true, name = "Flashcard Screen - Dark")
 @Composable
 fun FlashcardScreenDarkPreview() {
-    val context = LocalContext.current
-    val application = context.applicationContext as Application
-    val repository = FlashcardRepository(AppDatabase.getDatabase(application).flashCardDao()) // Assuming this constructor exists
+    val applicationContext = LocalContext.current.applicationContext as AnkiZeroApplication
+    val repository = applicationContext.repository
 
     MaterialTheme(colorScheme = darkColorScheme()) {
         FlashcardScreen(
-            application = application,
-            repository = repository,
-            viewModel = FlashcardViewModel(application, repository)
+            application = applicationContext,
+            repository = repository
+            // viewModel is created inside FlashcardScreen using the factory
         )
     }
 }
@@ -241,33 +240,25 @@ fun FlashcardScreenDarkPreview() {
 @Preview(showBackground = true, name = "Flashcard Screen - Empty State")
 @Composable
 fun FlashcardScreenEmptyPreview() {
-    val context = LocalContext.current
-    val application = context.applicationContext as Application
-    val repository = FlashcardRepository(AppDatabase.getDatabase(application).flashCardDao()) // Assuming this constructor exists
-    val emptyViewModel = FlashcardViewModel(application, repository)
-    // Simulate empty state for preview - this is a bit of a hack for preview
-    // In a real scenario, the ViewModel would be initialized with no due cards
-    // The .let block was not causing the 'val' reassignment error, it was related to
-    // how empty state was being forced. The primary fix is providing params to FlashcardViewModel.
-    // The original comment about direct modification of StateFlow for preview is valid but
-    // not the source of the 'val' reassignment compiler error.
-    // Forcing an empty state for preview is best done by controlling the ViewModel's initial data,
-    // which is outside the scope of this direct file modification if the ViewModel loads data eagerly.
-    // We will rely on the ViewModel to potentially be in an empty state based on the provided repository.
+    val applicationContext = LocalContext.current.applicationContext as AnkiZeroApplication
+    val repository = applicationContext.repository // Use a real or fake empty repository for previews
+    // To truly test the empty state, the ViewModel created within FlashcardScreen
+    // should reflect an empty state when given this repository.
 
     MaterialTheme {
-        // Display the "No cards due" text directly for this preview,
-        // as simulating an empty ViewModel state perfectly from here is complex
-        // without modifying the ViewModel or having a more sophisticated preview setup.
-        // If FlashcardViewModel initialized with an empty repository correctly shows this,
-        // then the FlashcardScreen composable itself would handle it.
-        // The original code for this preview was already showing this directly.
-         Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("No cards due for review.")
-        }
+        FlashcardScreen(
+            application = applicationContext,
+            repository = repository
+            // viewModel is created inside FlashcardScreen using the factory
+        )
+        // If the above doesn't show the empty state correctly due to ViewModel complexities
+        // with preview data, then the direct Text approach might be a fallback for visual check:
+        // Box(
+        // modifier = Modifier.fillMaxSize(),
+        // contentAlignment = Alignment.Center
+        // ) {
+        // Text("No cards due for review.")
+        // }
     }
 }
 
