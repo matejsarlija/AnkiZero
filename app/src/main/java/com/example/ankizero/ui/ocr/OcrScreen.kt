@@ -38,6 +38,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.ankizero.AnkiZeroApplication
+import com.example.ankizero.data.repository.FlashcardRepository
 import com.example.ankizero.ui.shared.ErrorMessage // Import shared components
 import com.example.ankizero.ui.shared.LoadingIndicator // Import shared components
 import java.io.File
@@ -57,10 +59,13 @@ data class Rect(val left: Float, val top: Float, val right: Float, val bottom: F
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun OcrScreen( // Removed default ViewModel instantiation
-    viewModel: OcrViewModel
+fun OcrScreen(
+    application: Application = LocalContext.current.applicationContext as Application,
+    repository: FlashcardRepository
 ) {
-    val context = LocalContext.current
+    val applicationContext = LocalContext.current.applicationContext as AnkiZeroApplication
+    val viewModel: OcrViewModel = viewModel(factory = OcrViewModelFactory(applicationContext, repository))
+    val context = LocalContext.current // context is still used for other things
     val lifecycleOwner = LocalLifecycleOwner.current
     val haptic = LocalHapticFeedback.current // Get haptic feedback instance
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -284,20 +289,22 @@ fun RecognizedTextDialog(
 @Preview(showBackground = true, name = "OCR Screen - Light (No Camera)")
 @Composable
 fun OcrScreenPreviewLight() {
+    val applicationContext = LocalContext.current.applicationContext as AnkiZeroApplication
+    val repository = applicationContext.repository
     MaterialTheme(colorScheme = lightColorScheme()) {
-        Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-            Text("OCR Screen Preview (Camera needs permission on device)", modifier = Modifier.align(Alignment.Center))
-        }
+        // OcrScreen will show its "permission required" or camera view if possible in preview
+        OcrScreen(application = applicationContext, repository = repository)
     }
 }
 
 @Preview(showBackground = true, name = "OCR Screen - Dark (No Camera)")
 @Composable
 fun OcrScreenPreviewDark() {
+    val applicationContext = LocalContext.current.applicationContext as AnkiZeroApplication
+    val repository = applicationContext.repository
     MaterialTheme(colorScheme = darkColorScheme()) {
-        Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-            Text("OCR Screen Preview (Camera needs permission on device)", modifier = Modifier.align(Alignment.Center))
-        }
+        // OcrScreen will show its "permission required" or camera view if possible in preview
+        OcrScreen(application = applicationContext, repository = repository)
     }
 }
 

@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.ankizero.AnkiZeroApplication
 import com.example.ankizero.data.database.AppDatabase // Added import
 import com.example.ankizero.data.entity.Flashcard
 import com.example.ankizero.data.repository.FlashcardRepository // Added import
@@ -38,9 +39,12 @@ val previewDueCards = List(3) { index ->
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NotificationsScreen( // Removed default ViewModel instantiation
-    viewModel: NotificationsViewModel
+fun NotificationsScreen(
+    application: Application = LocalContext.current.applicationContext as Application,
+    repository: FlashcardRepository
 ) {
+    val applicationContext = LocalContext.current.applicationContext as AnkiZeroApplication
+    val viewModel: NotificationsViewModel = viewModel(factory = NotificationsViewModelFactory(applicationContext, repository))
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
@@ -127,28 +131,22 @@ fun NotificationsScreen( // Removed default ViewModel instantiation
 @Preview(showBackground = true, name = "Notifications Screen - Light")
 @Composable
 fun NotificationsScreenPreviewLight() {
-    val context = LocalContext.current
-    val application = context.applicationContext as Application
-    // Assuming CardRepository can be instantiated directly for preview
-    val repository = FlashcardRepository(AppDatabase.getDatabase(application).flashCardDao())
-    // Assuming NotificationsViewModel can be instantiated directly for preview
-    val previewViewModel = NotificationsViewModel(application, repository)
+    val applicationContext = LocalContext.current.applicationContext as AnkiZeroApplication
+    val repository = applicationContext.repository
 
     MaterialTheme(colorScheme = lightColorScheme()) {
-        NotificationsScreen(viewModel = previewViewModel)
+        NotificationsScreen(application = applicationContext, repository = repository)
     }
 }
 
 @Preview(showBackground = true, name = "Notifications Screen - Dark")
 @Composable
 fun NotificationsScreenPreviewDark() {
-    val context = LocalContext.current
-    val application = context.applicationContext as Application
-    val repository = FlashcardRepository(AppDatabase.getDatabase(application).flashCardDao())
-    val previewViewModel = NotificationsViewModel(application, repository)
+    val applicationContext = LocalContext.current.applicationContext as AnkiZeroApplication
+    val repository = applicationContext.repository
 
     MaterialTheme(colorScheme = darkColorScheme()) {
-        NotificationsScreen(viewModel = previewViewModel)
+        NotificationsScreen(application = applicationContext, repository = repository)
     }
 }
 
