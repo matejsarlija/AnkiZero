@@ -57,7 +57,6 @@ import com.example.ankizero.ui.card.FlashcardScreen
 import com.example.ankizero.ui.management.CardManagementScreen
 import com.example.ankizero.ui.management.CreateCardScreen
 import com.example.ankizero.ui.management.EditCardScreen
-import com.example.ankizero.ui.management.previewEditFlashcard // For EditCardScreen placeholder if needed
 // Import the constant for channel ID
 import com.example.ankizero.util.workers.STUDY_REMINDERS_CHANNEL_ID
 
@@ -223,12 +222,8 @@ fun AnkiZeroApp(applicationContext: Context, repository: FlashcardRepository) { 
                 // This direct collection and find might be problematic if the list isn't ready.
                 // For now, we'll pass a placeholder as per subtask, but this needs proper ViewModel handling.
                 EditCardScreen(
-                    // card = card, // This was from original; our EditCardScreen expects cardToEdit
-                    cardToEdit = previewEditFlashcard.copy(id = cardId), // Placeholder for now
+                    cardId = cardId,
                     onNavigateBack = { navController.popBackStack() }
-                    // onSave = { updated -> viewModel.updateCard(updated) { navController.popBackStack() } },
-                    // onCancel = { navController.popBackStack() }
-                    // The EditCardScreen I created uses onNavigateBack.
                 )
             }
 
