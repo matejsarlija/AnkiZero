@@ -60,8 +60,8 @@ import com.example.ankizero.ui.management.CardManagementScreen
 import com.example.ankizero.ui.management.CreateCardScreen
 import com.example.ankizero.ui.management.EditCardScreen
 // Import the constant for channel ID
-import com.example.ankizero.util.workers.STUDY_REMINDERS_CHANNEL_ID
-import com.example.ankizero.ui.navigation.Screen // Already present but good to ensure
+//import com.example.ankizero.util.workers.STUDY_REMINDERS_CHANNEL_ID
+//import com.example.ankizero.ui.navigation.Screen // Already present but good to ensure
 
 // Using AppBottomNavItem from Navigation.kt (assumed to be updated with correct icons)
 // If Navigation.kt's BottomNavItem is not updated, this might cause issues.
@@ -249,7 +249,7 @@ fun AnkiZeroApp(applicationContext: Context, repository: FlashcardRepository) { 
             // Removed "notifications" route as it's not in the main scope of this task
         }
     }
-}
+}}
 
 // Removed local NavItem data class as AppBottomNavItem is used.
 // data class NavItem(val route: String, val icon: ImageVector, val label: String)
