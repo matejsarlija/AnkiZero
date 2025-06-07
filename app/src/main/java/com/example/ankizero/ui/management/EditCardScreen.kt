@@ -10,12 +10,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import android.app.Application // Added
+import androidx.compose.ui.platform.LocalContext // Added
 import androidx.compose.ui.res.stringResource
 // import androidx.compose.ui.tooling.preview.Preview // Preview removed
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 // import com.example.ankizero.data.entity.Flashcard // No longer directly manipulating Flashcard entity here
 import com.example.ankizero.R
+import com.example.ankizero.LocalFlashcardRepository // Added
 // import kotlinx.coroutines.launch // Not directly needed for snackbar, can be handled by VM or navigation callback
 import kotlin.math.roundToInt
 
@@ -24,8 +27,13 @@ import kotlin.math.roundToInt
 fun EditCardScreen(
     cardId: Long,
     onNavigateBack: () -> Unit,
-    viewModel: CardManagementViewModel = viewModel()
+    // viewModel: CardManagementViewModel = viewModel() // Old way
 ) {
+    val application = LocalContext.current.applicationContext as Application
+    val flashcardRepository = LocalFlashcardRepository.current // Access using the correct import
+    val viewModel: CardManagementViewModel = viewModel(
+        factory = CardManagementViewModelFactory(application, flashcardRepository)
+    )
     val editCardFormState by viewModel.editCardFormState.collectAsState()
 
     // val snackbarHostState = remember { SnackbarHostState() } // Keep if snackbar shown from here
