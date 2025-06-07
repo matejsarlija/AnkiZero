@@ -232,7 +232,8 @@ class CardManagementViewModel(
                 exampleSentence = formState.exampleSentence,
                 notes = formState.notes,
                 difficulty = formState.difficulty.toInt(), // Assuming difficulty is stored as Int in Flashcard
-                creationDate = System.currentTimeMillis() // Or your preferred way to set creation date
+                creationDate = System.currentTimeMillis(), // Or your preferred way to set creation date
+                nextReviewDate = System.currentTimeMillis() // Or your preferred way to set creation date
             )
             createCard(newCard, onSuccess) // createCard already handles repo interaction and analytics
             resetCreateCardFormState()
