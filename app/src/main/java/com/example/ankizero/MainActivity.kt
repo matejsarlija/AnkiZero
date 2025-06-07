@@ -28,8 +28,10 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text // Renamed M3Text to Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -59,6 +61,7 @@ import com.example.ankizero.ui.management.CreateCardScreen
 import com.example.ankizero.ui.management.EditCardScreen
 // Import the constant for channel ID
 import com.example.ankizero.util.workers.STUDY_REMINDERS_CHANNEL_ID
+import com.example.ankizero.ui.navigation.Screen // Already present but good to ensure
 
 // Using AppBottomNavItem from Navigation.kt (assumed to be updated with correct icons)
 // If Navigation.kt's BottomNavItem is not updated, this might cause issues.
@@ -82,6 +85,9 @@ val appScreenBottomNavItems = listOf( // Renamed to avoid conflict if Navigation
     AppBottomNavItem.OcrScan
 )
 
+val LocalFlashcardRepository = staticCompositionLocalOf<FlashcardRepository> {
+    error("No FlashcardRepository provided")
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -133,9 +139,10 @@ fun AnkiZeroApp(applicationContext: Context, repository: FlashcardRepository) { 
         }
     }
 
-    Scaffold(
-        topBar = { // Adding a simple TopAppBar for the test crash button if needed, or place button directly in Column
-            if (BuildConfig.DEBUG) { // Only show Test Crash button in debug builds
+    CompositionLocalProvider(LocalFlashcardRepository provides repository) { // Wrap NavHost
+        Scaffold(
+            topBar = { // Adding a simple TopAppBar for the test crash button if needed, or place button directly in Column
+                if (BuildConfig.DEBUG) { // Only show Test Crash button in debug builds
                 // This is not ideal for a real topBar, just for quick access
                 // A better place might be a debug drawer or specific debug screen
                 Row(modifier = Modifier.fillMaxWidth().padding(4.dp), horizontalArrangement = Arrangement.Center) {
@@ -191,8 +198,10 @@ fun AnkiZeroApp(applicationContext: Context, repository: FlashcardRepository) { 
 
             composable(Screen.Management) { // Use constant
                 val application = LocalContext.current.applicationContext as Application
+                // Get repository from CompositionLocal
+                val flashcardRepository = LocalFlashcardRepository.current
                 val viewModel: com.example.ankizero.ui.management.CardManagementViewModel = viewModel(
-                    factory = com.example.ankizero.ui.management.CardManagementViewModelFactory(application)
+                    factory = com.example.ankizero.ui.management.CardManagementViewModelFactory(application, flashcardRepository) // Pass repository
                 )
                 CardManagementScreen(
                     viewModel = viewModel,
