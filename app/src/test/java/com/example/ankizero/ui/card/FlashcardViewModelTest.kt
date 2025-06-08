@@ -11,10 +11,14 @@ import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
+import org.mockito.Mock // Added
+import org.mockito.MockitoAnnotations // Added
+import android.app.Application // Added
 import org.mockito.kotlin.mock // Preferred Mockito-Kotlin import
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.mockito.kotlin.any
+import kotlin.test.*
 import java.time.LocalDate
 import java.time.ZoneOffset
 import kotlin.math.roundToInt
@@ -25,8 +29,15 @@ class FlashcardViewModelTest {
 
     private val testDispatcher = UnconfinedTestDispatcher() // StandardTestDispatcher can also be used
 
-    private lateinit var viewModel: FlashcardViewModel
+    @Mock
+    private lateinit var mockApplication: Application
+    @Mock
     private lateinit var mockRepository: FlashcardRepository
+    // As per actual constructor, TextToSpeechHelper is not a direct dependency.
+    // @Mock
+    // private lateinit var mockTextToSpeechHelper: TextToSpeechHelper
+
+    private lateinit var viewModel: FlashcardViewModel
 
     // Helper to create Flashcard instances for tests, aligned with entity changes
     private fun createTestFlashcard(
@@ -40,7 +51,7 @@ class FlashcardViewModelTest {
         difficulty: Int? = null,
         lastReviewed: Long? = null,
         reviewCount: Int = 0,
-        pronunciation: String? = null,
+        // pronunciation: String? = null, // Removed as it's not in Flashcard entity
         exampleSentence: String? = null,
         notes: String? = null
     ): Flashcard {
@@ -48,7 +59,7 @@ class FlashcardViewModelTest {
             id = id,
             frenchWord = frenchWord,
             englishTranslation = englishTranslation,
-            pronunciation = pronunciation,
+            // pronunciation = pronunciation, // Removed
             exampleSentence = exampleSentence,
             notes = notes,
             creationDate = creationDate,
@@ -63,8 +74,12 @@ class FlashcardViewModelTest {
 
     @Before
     fun setUp() {
+        MockitoAnnotations.openMocks(this) // Initialize mocks
         Dispatchers.setMain(testDispatcher)
-        mockRepository = mock() // Initialize mock repository
+        // mockRepository is now initialized by MockitoAnnotations
+        // mockApplication is also initialized by MockitoAnnotations
+        // If TextToSpeechHelper were used:
+        // mockTextToSpeechHelper = mock() // or use @Mock if it's a class member
     }
 
     @After
@@ -75,7 +90,7 @@ class FlashcardViewModelTest {
     @Test
     fun `initial state when no due cards`() = runTest {
         whenever(mockRepository.getDueCards()).thenReturn(flowOf(emptyList()))
-        viewModel = FlashcardViewModel(mockRepository)
+        viewModel = FlashcardViewModel(mockApplication, mockRepository)
 
         val uiState = viewModel.uiState.first()
         assertTrue(uiState.isDeckEmpty)
@@ -90,7 +105,7 @@ class FlashcardViewModelTest {
         val dueCards = listOf(card1, card2)
         whenever(mockRepository.getDueCards()).thenReturn(flowOf(dueCards))
 
-        viewModel = FlashcardViewModel(mockRepository)
+        viewModel = FlashcardViewModel(mockApplication, mockRepository)
         val uiState = viewModel.uiState.first { it.currentCard != null } // Wait for card to load
 
         assertFalse(uiState.isDeckEmpty)
@@ -109,7 +124,7 @@ class FlashcardViewModelTest {
         whenever(mockRepository.processReview(any(), org.mockito.kotlin.eq(true)))
             .thenReturn(updatedCardAfterReview) // Mock the updated card returned by processReview
 
-        viewModel = FlashcardViewModel(mockRepository)
+        viewModel = FlashcardViewModel(mockApplication, mockRepository)
         viewModel.uiState.first { it.currentCard != null } // Ensure initial card is loaded
 
         viewModel.processCardRating(isMemorized = true)
@@ -131,7 +146,7 @@ class FlashcardViewModelTest {
         whenever(mockRepository.processReview(any(), org.mockito.kotlin.eq(false)))
             .thenReturn(updatedCardAfterReview)
 
-        viewModel = FlashcardViewModel(mockRepository)
+        viewModel = FlashcardViewModel(mockApplication, mockRepository)
         viewModel.uiState.first { it.currentCard != null }
 
         viewModel.processCardRating(isMemorized = false)
@@ -150,7 +165,7 @@ class FlashcardViewModelTest {
         val dueCards = listOf(card1, card2, card3) // ViewModel shuffles this internally
         whenever(mockRepository.getDueCards()).thenReturn(flowOf(dueCards))
 
-        viewModel = FlashcardViewModel(mockRepository)
+        viewModel = FlashcardViewModel(mockApplication, mockRepository)
         val initialState = viewModel.uiState.first { it.currentCard != null }
         val firstLoadedCardId = initialState.currentCard!!.id
 
@@ -175,7 +190,7 @@ class FlashcardViewModelTest {
         val dueCards = listOf(card1, card2) // VM shuffles this.
         whenever(mockRepository.getDueCards()).thenReturn(flowOf(dueCards))
 
-        viewModel = FlashcardViewModel(mockRepository)
+        viewModel = FlashcardViewModel(mockApplication, mockRepository)
         val initialState = viewModel.uiState.first { it.currentCard != null }
         val firstCardIdInSession = initialState.currentCard!!.id
 
@@ -198,7 +213,7 @@ class FlashcardViewModelTest {
         val dueCards = listOf(card1, card2)
         whenever(mockRepository.getDueCards()).thenReturn(flowOf(dueCards))
 
-        viewModel = FlashcardViewModel(mockRepository)
+        viewModel = FlashcardViewModel(mockApplication, mockRepository)
         val initialState = viewModel.uiState.first { it.currentCard != null }
         val firstCardIdInSession = initialState.currentCard!!.id // Could be card1 or card2 due to shuffle
 
@@ -219,7 +234,7 @@ class FlashcardViewModelTest {
     @Test
     fun `dismissFlipHint updates showFlipHint state`() = runTest {
         whenever(mockRepository.getDueCards()).thenReturn(flowOf(listOf(createTestFlashcard(id = 1))))
-        viewModel = FlashcardViewModel(mockRepository)
+        viewModel = FlashcardViewModel(mockApplication, mockRepository)
 
         // Initial state might show flip hint
         viewModel.uiState.first { it.currentCard != null } // Ensure card is loaded

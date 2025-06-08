@@ -16,6 +16,9 @@ import org.junit.Test
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.mockito.kotlin.any // Added for org.mockito.kotlin.any
+import org.mockito.Mock // Added for @Mock
+import kotlin.test.*
 import java.time.LocalDate
 import java.time.ZoneOffset
 import kotlin.system.measureTimeMillis
@@ -24,9 +27,10 @@ import org.mockito.Captor
 import org.junit.runner.RunWith
 import org.mockito.junit.MockitoJUnitRunner
 import android.app.Application
-import org.mockito.Mockito.`when` // For `when`
-import org.mockito.ArgumentMatchers.anyInt // For anyInt()
-import org.mockito.ArgumentMatchers.any // For any()
+// import org.mockito.Mockito.`when` // Removed, use org.mockito.kotlin.whenever
+import org.mockito.ArgumentMatchers // Added for anyInt and captor
+// import org.mockito.ArgumentMatchers.anyInt // Removed
+// import org.mockito.ArgumentMatchers.any // Removed, use org.mockito.kotlin.any
 import org.mockito.kotlin.eq // for eq()
 
 
@@ -36,10 +40,15 @@ class CardManagementViewModelTest {
 
     @Captor private lateinit var flashcardCaptor: ArgumentCaptor<Flashcard>
 
+    @Mock
+    private lateinit var mockApplication: Application // Changed to @Mock
+    @Mock
+    private lateinit var mockRepository: FlashcardRepository // Changed to @Mock
+
     private val testDispatcher = UnconfinedTestDispatcher() // Or StandardTestDispatcher for more control
 
     private lateinit var viewModel: CardManagementViewModel
-    private lateinit var mockRepository: FlashcardRepository
+    // private lateinit var mockRepository: FlashcardRepository // Now a @Mock field
     private lateinit var initialMockCards: List<Flashcard>
     private lateinit var mockCardsFlow: MutableStateFlow<List<Flashcard>>
 
@@ -74,16 +83,17 @@ class CardManagementViewModelTest {
 
     @Before
     fun setUp() {
-        val mockApplication = mock<Application>()
-        `when`(mockApplication.getString(anyInt())).thenReturn("Mocked error string")
+        // MockitoJUnitRunner handles mock initialization for @Mock annotated fields
+        // val mockApplication = mock<Application>() // Removed, mockApplication is now a @Mock field
+        whenever(mockApplication.getString(ArgumentMatchers.anyInt())).thenReturn("Mocked error string")
         Dispatchers.setMain(testDispatcher)
-        mockRepository = mock()
+        // mockRepository = mock() // Removed, mockRepository is now a @Mock field
 
         // Setup initial mock data and the flow that emits it
         initialMockCards = listOf(
-            createTestFlashcard(id = 1, frenchWord = "Bonjour", englishTranslation = "Hello", creationDate = LocalDate.now().minusDays(2).toEpochSecond(ZoneOffset.UTC) * 1000, difficulty = 3),
-            createTestFlashcard(id = 2, frenchWord = "Au revoir", englishTranslation = "Goodbye", creationDate = LocalDate.now().minusDays(1).toEpochSecond(ZoneOffset.UTC) * 1000, difficulty = 1),
-            createTestFlashcard(id = 3, frenchWord = "Merci", englishTranslation = "Thank you", creationDate = LocalDate.now().toEpochSecond(ZoneOffset.UTC) * 1000, difficulty = 5)
+            createTestFlashcard(id = 1, frenchWord = "Bonjour", englishTranslation = "Hello", creationDate = LocalDate.now().minusDays(2).atStartOfDay().toEpochSecond(ZoneOffset.UTC) * 1000, difficulty = 3),
+            createTestFlashcard(id = 2, frenchWord = "Au revoir", englishTranslation = "Goodbye", creationDate = LocalDate.now().minusDays(1).atStartOfDay().toEpochSecond(ZoneOffset.UTC) * 1000, difficulty = 1),
+            createTestFlashcard(id = 3, frenchWord = "Merci", englishTranslation = "Thank you", creationDate = LocalDate.now().atStartOfDay().toEpochSecond(ZoneOffset.UTC) * 1000, difficulty = 5)
         )
         mockCardsFlow = MutableStateFlow(initialMockCards)
         whenever(mockRepository.getAllCards()).thenReturn(mockCardsFlow.asStateFlow())
@@ -205,7 +215,7 @@ class CardManagementViewModelTest {
         val difficulty = 2.5f // Form state uses Float
 
         // Mock repository insert to return a dummy ID (e.g., 1L)
-        `when`(mockRepository.insert(any(Flashcard::class.java))).thenReturn(1L)
+        whenever(mockRepository.insert(any<Flashcard>())).thenReturn(1L) // Corrected to any<Flashcard>()
 
         // When
         viewModel.updateNewFrenchWord(frenchWord)

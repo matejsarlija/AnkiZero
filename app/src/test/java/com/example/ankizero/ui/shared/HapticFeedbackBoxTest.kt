@@ -6,15 +6,16 @@ import android.os.Vibrator
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
-import androidx.test.ext.junit.runners.AndroidJUnit4
+// import androidx.test.ext.junit.runners.AndroidJUnit4 // Removed for local test attempt
 import org.junit.Rule
 import org.junit.Test
-import org.junit.runner.RunWith
+import org.junit.runner.RunWith // Keep for @RunWith if another runner is used, though not in this case
 import org.mockito.Mockito
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
+import kotlin.test.*
 
-@RunWith(AndroidJUnit4::class)
+// @RunWith(AndroidJUnit4::class) // Removed for local test attempt
 class HapticFeedbackBoxTest {
     @get:Rule
     val composeTestRule = createComposeRule()
