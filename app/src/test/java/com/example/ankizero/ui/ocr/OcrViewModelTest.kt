@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow // Added import
+import kotlinx.coroutines.launch // Explicit import for launch
 import kotlinx.coroutines.test.*
 import org.junit.After
 import org.junit.Assert.*

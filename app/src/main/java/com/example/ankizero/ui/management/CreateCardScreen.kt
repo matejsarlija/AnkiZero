@@ -15,6 +15,9 @@ import androidx.compose.ui.res.stringResource // Added
 // import androidx.compose.ui.tooling.preview.Preview // Preview removed
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel // Added
+import android.app.Application // Added for Application parameter
+import com.example.ankizero.data.repository.FlashcardRepository // Added for Repository parameter
+// import com.example.ankizero.ui.management.CardManagementViewModelFactory // Will be defined in this file or imported if separate
 // import com.example.ankizero.data.entity.Flashcard // No longer creating Flashcard here
 import com.example.ankizero.R // Added
 // import kotlinx.coroutines.launch // No longer needed for local scope
@@ -25,9 +28,14 @@ import kotlin.math.roundToInt
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateCardScreen(
-    onNavigateBack: () -> Unit,
-    viewModel: CardManagementViewModel = viewModel()
+    application: Application,      // Added
+    repository: FlashcardRepository, // Added
+    onNavigateBack: () -> Unit
+    // viewModel: CardManagementViewModel = viewModel() // Original line removed
 ) {
+    val viewModel: CardManagementViewModel = viewModel(
+        factory = CardManagementViewModelFactory(application, repository)
+    )
     val createCardFormState by viewModel.createCardFormState.collectAsState()
 
     // val snackbarHostState = remember { SnackbarHostState() } // Keep if snackbar is shown from here, or move logic to VM if it controls snackbar

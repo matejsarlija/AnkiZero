@@ -215,7 +215,7 @@ class CardManagementViewModelTest {
         val difficulty = 2.5f // Form state uses Float
 
         // Mock repository insert to return a dummy ID (e.g., 1L)
-        whenever(mockRepository.insert(any(Flashcard::class.java))).thenReturn(1L) // Changed to whenever, org.mockito.kotlin.any should handle Flashcard::class.java
+        whenever(mockRepository.insert(any<Flashcard>())).thenReturn(1L) // Corrected to any<Flashcard>()
 
         // When
         viewModel.updateNewFrenchWord(frenchWord)

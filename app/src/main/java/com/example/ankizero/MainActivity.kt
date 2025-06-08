@@ -239,7 +239,11 @@ fun AnkiZeroApp(applicationContext: Context, repository: FlashcardRepository) { 
                 // val viewModel: com.example.ankizero.ui.management.CardManagementViewModel = viewModel(...)
                 // CreateCardScreen(onSave = { nc -> viewModel.createCard(nc) {navController.popBackStack()} }, onCancel = {...})
                 // My CreateCardScreen uses onNavigateBack.
+                val application = LocalContext.current.applicationContext as Application
+                val flashcardRepository = LocalFlashcardRepository.current
                 CreateCardScreen(
+                    application = application,
+                    repository = flashcardRepository,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
