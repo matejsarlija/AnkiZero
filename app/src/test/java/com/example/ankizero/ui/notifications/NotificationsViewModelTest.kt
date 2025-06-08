@@ -12,8 +12,14 @@ import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
+import org.mockito.Mock // Added
+import org.mockito.MockitoAnnotations // Added
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
+import org.mockito.kotlin.verify // Added
+import org.mockito.kotlin.any // Added
+import org.mockito.ArgumentMatchers // Added
+import kotlin.test.*
 import java.time.LocalDate
 import java.time.ZoneOffset
 
@@ -21,8 +27,10 @@ import java.time.ZoneOffset
 class NotificationsViewModelTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
-    private lateinit var mockApplication: Application
-    private lateinit var mockRepository: FlashcardRepository
+    @Mock
+    private lateinit var mockApplication: Application // Changed to @Mock
+    @Mock
+    private lateinit var mockRepository: FlashcardRepository // Changed to @Mock
     private lateinit var viewModel: NotificationsViewModel
 
     private fun createTestFlashcard(id: Long, frenchWord: String = "French $id"): Flashcard {
@@ -39,9 +47,9 @@ class NotificationsViewModelTest {
 
     @Before
     fun setUp() {
+        MockitoAnnotations.openMocks(this) // Initialize mocks
         Dispatchers.setMain(testDispatcher)
-        mockApplication = mock()
-        mockRepository = mock()
+        // mockApplication and mockRepository are now initialized by MockitoAnnotations
     }
 
     @After
@@ -88,19 +96,22 @@ class NotificationsViewModelTest {
         whenever(mockRepository.getDueCards()).thenReturn(flowOf(emptyList()))
         viewModel = NotificationsViewModel(mockApplication, mockRepository)
 
-        viewModel.setReminderTime(14, 30) // 2:30 PM
+        viewModel.updateReminderTime("14:30") // Changed to updateReminderTime
         assertEquals("02:30 PM", viewModel.uiState.value.reminderTime)
 
-        viewModel.setReminderTime(8, 5) // 8:05 AM
+        viewModel.updateReminderTime("08:05") // Changed to updateReminderTime
         assertEquals("08:05 AM", viewModel.uiState.value.reminderTime)
 
-        viewModel.setReminderTime(0, 15) // 12:15 AM
+        viewModel.updateReminderTime("00:15") // Changed to updateReminderTime
         assertEquals("12:15 AM", viewModel.uiState.value.reminderTime)
 
-        viewModel.setReminderTime(12, 0) // 12:00 PM
+        viewModel.updateReminderTime("12:00") // Changed to updateReminderTime
         assertEquals("12:00 PM", viewModel.uiState.value.reminderTime)
     }
 
+    // The test name should reflect that it now tests updateReminderTime and its effects
+    // e.g. `updateReminderTime updates state and schedules notification` - but scheduling is an internal detail not easily verified here without more complex WorkManager testing.
+    // For now, keeping it focused on state.
     @Test
     fun `refreshDueCards does not change state if underlying flow is same`() = runTest {
         val dueCardsSample = listOf(createTestFlashcard(1, "Test Card"))
