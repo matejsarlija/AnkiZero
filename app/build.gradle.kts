@@ -46,6 +46,11 @@ android {
         compose = true
         buildConfig = true
     }
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+        }
+    }
 }
 
 dependencies {
@@ -77,6 +82,8 @@ dependencies {
     testImplementation(libs.mockito.core) // Added Mockito
     testImplementation(libs.kotlin.test.junit)
     testImplementation(libs.mockito.kotlin)
+    testImplementation(libs.androidx.ui.test.junit4)
+    testImplementation("org.robolectric:robolectric:4.11.1")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

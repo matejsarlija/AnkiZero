@@ -7,15 +7,20 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 // import androidx.test.ext.junit.runners.AndroidJUnit4 // Removed for local test attempt
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import android.os.Build // Already present, but good to note
 import org.junit.Rule
 import org.junit.Test
-import org.junit.runner.RunWith // Keep for @RunWith if another runner is used, though not in this case
 import org.mockito.Mockito
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import kotlin.test.*
 
 // @RunWith(AndroidJUnit4::class) // Removed for local test attempt
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [Build.VERSION_CODES.P])
 class HapticFeedbackBoxTest {
     @get:Rule
     val composeTestRule = createComposeRule()
