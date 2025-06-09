@@ -76,6 +76,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.androidx.work.runtime.ktx) // Added WorkManager
+    implementation(libs.androidx.datastore.preferences) // Added DataStore
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test) // Added

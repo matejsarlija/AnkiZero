@@ -1,8 +1,14 @@
 package com.example.ankizero.ui.notifications
 
 import android.app.Application
+import android.app.Application
+import androidx.datastore.core.DataStore // Added DataStore import
+import androidx.datastore.preferences.core.Preferences // Added Preferences import
+import androidx.datastore.preferences.core.edit // Added edit import
+import androidx.datastore.preferences.preferencesDataStore // Added preferencesDataStore import
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.ankizero.data.NotificationPreferences // Added NotificationPreferences import
 import com.example.ankizero.data.entity.Flashcard
 import com.example.ankizero.data.repository.FlashcardRepository // Added import
 import androidx.work.* // Added WorkManager imports
@@ -15,6 +21,9 @@ import java.text.SimpleDateFormat // Added import
 import java.util.Calendar
 import java.util.Locale // Added import
 import java.util.concurrent.TimeUnit
+import android.content.Context // Added Context import
+
+// DataStore is defined in AnkiZeroApplication.kt
 
 data class NotificationsUiState(
     val dueCards: List<Flashcard> = emptyList(),
@@ -24,7 +33,8 @@ data class NotificationsUiState(
 
 class NotificationsViewModel(
     application: Application,
-    private val repository: FlashcardRepository
+    private val repository: FlashcardRepository,
+    private val dataStore: DataStore<Preferences> // Injected DataStore
 ) : AndroidViewModel(application) {
 
     private val workManager = WorkManager.getInstance(application)
@@ -57,9 +67,24 @@ class NotificationsViewModel(
     )
 
     init {
+        loadSettings()
         // Example: if reminders were enabled on app start, schedule it
-        if (_dailyRemindersEnabled.value) {
-            scheduleDailyReminder()
+        // This will be handled by the collector of _dailyRemindersEnabled
+    }
+
+    private fun loadSettings() {
+        viewModelScope.launch {
+            dataStore.data.collect { preferences ->
+                _dailyRemindersEnabled.value = preferences[NotificationPreferences.DAILY_REMINDERS_ENABLED] ?: true
+                val hour = preferences[NotificationPreferences.REMINDER_TIME_HOUR] ?: 9
+                val minute = preferences[NotificationPreferences.REMINDER_TIME_MINUTE] ?: 0
+                _reminderTime.value = String.format(Locale.US, "%02d:%02d", hour, minute)
+
+                // Reschedule if reminders are enabled with the loaded time
+                if (_dailyRemindersEnabled.value) {
+                    scheduleDailyReminder()
+                }
+            }
         }
     }
 
@@ -83,12 +108,20 @@ class NotificationsViewModel(
 
     fun toggleDailyReminders(isEnabled: Boolean) {
         _dailyRemindersEnabled.value = isEnabled
+        saveDailyRemindersPreference(isEnabled) // Save preference
         AnalyticsHelper.logNotificationPreferenceChanged(getApplication(), isEnabled, _reminderTime.value) // Added
-        // In a real app, save this preference to DataStore/SharedPreferences
         if (isEnabled) {
             scheduleDailyReminder()
         } else {
             cancelDailyReminder()
+        }
+    }
+
+    private fun saveDailyRemindersPreference(isEnabled: Boolean) {
+        viewModelScope.launch {
+            dataStore.edit { preferences ->
+                preferences[NotificationPreferences.DAILY_REMINDERS_ENABLED] = isEnabled
+            }
         }
     }
 
@@ -104,8 +137,8 @@ class NotificationsViewModel(
             }
             val oldTime = _reminderTime.value
             _reminderTime.value = newTime
+            saveReminderTimePreference(hour, minute) // Save preference
             AnalyticsHelper.logNotificationPreferenceChanged(getApplication(), _dailyRemindersEnabled.value, newTime) // Added
-            // In a real app, save this preference
             if (_dailyRemindersEnabled.value && oldTime != newTime) { // Reschedule only if time actually changed
                 AppLogger.i(TAG, "Reminder time updated to $newTime, rescheduling worker.")
                 scheduleDailyReminder() // Reschedule with new time
@@ -116,6 +149,14 @@ class NotificationsViewModel(
         }
     }
 
+    private fun saveReminderTimePreference(hour: Int, minute: Int) {
+        viewModelScope.launch {
+            dataStore.edit { preferences ->
+                preferences[NotificationPreferences.REMINDER_TIME_HOUR] = hour
+                preferences[NotificationPreferences.REMINDER_TIME_MINUTE] = minute
+            }
+        }
+    }
 
     private fun scheduleDailyReminder() {
         val (hour, minute) = try {

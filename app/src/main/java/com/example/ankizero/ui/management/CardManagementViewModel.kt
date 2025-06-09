@@ -39,7 +39,7 @@ data class EditCardFormState(
     val id: Long? = null,
     val frenchWord: String = "",
     val englishTranslation: String = "",
-    // val exampleSentence: String = "", // Not specified in requirements for EditCardFormState but present in CreateCardFormState. Assuming not needed unless clarified.
+    val exampleSentence: String = "", // Added exampleSentence field
     val notes: String = "",
     val difficulty: Float = 0.5f, // Default difficulty
     val frenchWordError: String? = null,
@@ -258,7 +258,7 @@ class CardManagementViewModel(
                         id = card.id,
                         frenchWord = card.frenchWord,
                         englishTranslation = card.englishTranslation,
-                        // exampleSentence = card.exampleSentence ?: "", // Uncomment if exampleSentence is added to EditCardFormState
+                        exampleSentence = card.exampleSentence ?: "", // Populate exampleSentence
                         notes = card.notes ?: "",
                         difficulty = (card.difficulty ?: 3) - 1f, // Assuming difficulty 1-5 maps to 0f-4f
                         frenchWordError = null,
@@ -283,9 +283,9 @@ class CardManagementViewModel(
         _editCardFormState.update { it.copy(englishTranslation = translation, englishTranslationError = null) }
     }
 
-    // fun updateEditExampleSentence(sentence: String) { // Uncomment if exampleSentence is added
-    // _editCardFormState.update { it.copy(exampleSentence = sentence) }
-    // }
+    fun updateEditExampleSentence(sentence: String) { // Added function to update exampleSentence
+        _editCardFormState.update { it.copy(exampleSentence = sentence) }
+    }
 
     fun updateEditNotes(notes: String) {
         _editCardFormState.update { it.copy(notes = notes) }
@@ -320,7 +320,7 @@ class CardManagementViewModel(
                         val updatedCard = originalCard.copy(
                             frenchWord = formState.frenchWord.trim(),
                             englishTranslation = formState.englishTranslation.trim(),
-                            // exampleSentence = formState.exampleSentence.trim().ifEmpty { null }, // Uncomment if exampleSentence is part of EditCardFormState
+                            exampleSentence = formState.exampleSentence.trim().ifEmpty { null }, // Save exampleSentence
                             notes = formState.notes.trim().ifEmpty { null },
                             difficulty = formState.difficulty.toInt() + 1 // Convert 0f-4f slider to 1-5
                         )
