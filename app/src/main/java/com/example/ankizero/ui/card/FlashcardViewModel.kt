@@ -10,6 +10,7 @@ import com.example.ankizero.util.AnalyticsHelper
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlin.collections.shuffled
+import kotlin.random.Random
 // import kotlin.math.max // No longer used
 // import kotlin.math.min // No longer used
 // import kotlin.math.roundToInt // Not used after refactor
@@ -58,7 +59,7 @@ class FlashcardViewModel(
                 // When refresh is triggered, we default to loading due cards (normal review)
                 repository.getDueCards()
             }.collectLatest { cards ->
-                    val shuffledCards = cards.shuffled()
+                    val shuffledCards = cards.shuffled(kotlin.random.Random.Default)
                     // Reset session counters if the set of card IDs has changed.
                     // This should happen when the mode or the actual list of cards changes significantly.
                     val oldIds = _uiState.value.dueCardsList.map { it.id }.toSet()
@@ -116,7 +117,7 @@ class FlashcardViewModel(
             // val allCards = repository.getAllCards().shuffled()
             // Based on FlashcardRepository, getAllCards returns Flow.
 
-            val cards = repository.getAllCards().firstOrNull()?.shuffled() ?: emptyList()
+            val cards = repository.getAllCards().firstOrNull()?.shuffled(kotlin.random.Random.Default) ?: emptyList()
             cardsReviewedThisSession = 0
             sessionStartTime = System.currentTimeMillis()
 
