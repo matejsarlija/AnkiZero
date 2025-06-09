@@ -131,15 +131,14 @@ fun EditCardScreen(
                     Text("Optional Fields", style = MaterialTheme.typography.titleSmall)
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Example Sentence field could be added here if part of EditCardFormState
-                    // OutlinedTextField(
-                    //     value = editCardFormState.exampleSentence,
-                    //     onValueChange = { viewModel.updateEditExampleSentence(it) },
-                    //     label = { Text("Example Sentence") },
-                    //     modifier = Modifier.fillMaxWidth(),
-                    //     maxLines = 3
-                    // )
-                    // Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = editCardFormState.exampleSentence,
+                        onValueChange = { viewModel.updateEditExampleSentence(it) },
+                        label = { Text("Example Sentence") },
+                        modifier = Modifier.fillMaxWidth(),
+                        maxLines = 3
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     OutlinedTextField(
                         value = editCardFormState.notes,

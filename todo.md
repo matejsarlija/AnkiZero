@@ -36,10 +36,10 @@ This document outlines potential fixes, suggestions, and areas for further devel
 ## `NotificationsViewModel.kt` & `NotificationsScreen.kt`
 
 *   **CRITICAL FIXES (ViewModel & Screen):**
-    *   [ ] **Persist Notification Settings:** Implement saving and loading for `_dailyRemindersEnabled` and `_reminderTime` using DataStore or SharedPreferences.
+    *   [x] **Persist Notification Settings:** Implement saving and loading for `_dailyRemindersEnabled` and `_reminderTime` using DataStore or SharedPreferences.
 *   **CRITICAL FIXES (Screen):**
-    *   [ ] **Implement Time Picker:** The "Reminder Time" `TextButton` should open a time picker dialog.
-    *   [ ] **Implement "Review Now" Action:** The "Review Due Cards Now" button should navigate to `FlashcardScreen` or trigger the review session.
+    *   [x] **Implement Time Picker:** The "Reminder Time" `TextButton` should open a time picker dialog.
+    *   [x] **Implement "Review Now" Action:** The "Review Due Cards Now" button should navigate to `FlashcardScreen` or trigger the review session.
 *   **Suggestions/Further Development (ViewModel & Screen):**
     *   [ ] Clarify user expectation for "Hypothetically Due Cards" or investigate more dynamic ways to update this list if needed.
 
@@ -62,7 +62,7 @@ This document outlines potential fixes, suggestions, and areas for further devel
 ## `CreateCardScreen.kt`
 
 *   **CRITICAL FIXES:**
-    *   [ ] **ViewModel Integration:** Integrate with `CardManagementViewModel.createCard()` (or a dedicated ViewModel) to save the card.
+    *   [x] **ViewModel Integration:** Integrate with `CardManagementViewModel.createCard()` (or a dedicated ViewModel) to save the card.
 *   **Suggestions/Further Development:**
     *   [ ] (Covered by General) Use string resources for all labels and error messages.
     *   [ ] Consider using `SnackbarHostState` for feedback on save success/failure.
@@ -72,10 +72,10 @@ This document outlines potential fixes, suggestions, and areas for further devel
 ## `EditCardScreen.kt`
 
 *   **CRITICAL FIXES:**
-    *   [ ] **ViewModel Integration (Load):** Load the card to be edited using its ID via `CardManagementViewModel` (or a dedicated ViewModel).
-    *   [ ] **ViewModel Integration (Save):** Integrate with `CardManagementViewModel.updateCard()` to save changes.
+    *   [x] **ViewModel Integration (Load):** Load the card to be edited using its ID via `CardManagementViewModel` (or a dedicated ViewModel).
+    *   [x] **ViewModel Integration (Save):** Integrate with `CardManagementViewModel.updateCard()` to save changes.
 *   **Potential Fixes/Clarifications:**
-    *   [ ] **Missing Editable Fields:** Verify which fields of the `Flashcard` entity (e.g., `exampleSentence`) are intended to be editable and ensure they are present on the form.
+    *   [x] **Missing Editable Fields:** Verify which fields of the `Flashcard` entity (e.g., `exampleSentence`) are intended to be editable and ensure they are present on the form.
 *   **Suggestions/Further Development:**
     *   [ ] (Covered by General) Use string resources for all labels and error messages.
     *   [ ] Consider using `SnackbarHostState` for feedback on update success/failure.

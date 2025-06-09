@@ -13,14 +13,21 @@ import kotlinx.coroutines.launch
 // import kotlin.math.min // No longer used
 // import kotlin.math.roundToInt // Not used after refactor
 
+enum class ReviewMode {
+    NONE, // No review active, or no cards due initially
+    NORMAL, // Reviewing normally due cards
+    MANUAL  // Reviewing all cards manually
+}
+
 // This is the UiState that FlashcardScreen.kt was designed to work with
 data class FlashcardUiState(
     val currentCard: Flashcard? = null,
     val progressText: String = "",
-    val isDeckEmpty: Boolean = false,
+    val isDeckEmpty: Boolean = false, // True if no cards for the current mode, or no cards at all
     val showFlipHint: Boolean = true, // To control initial flip hint visibility
     val dueCardsList: List<Flashcard> = emptyList(), // Added
-    val currentCardIndex: Int = 0 // Added
+    val currentCardIndex: Int = 0, // Added
+    val reviewMode: ReviewMode = ReviewMode.NONE // Added review mode
 )
 
 // Changed to AndroidViewModel to get Application context
@@ -47,10 +54,12 @@ class FlashcardViewModel(
             refreshTrigger.flatMapLatest { triggeredTime ->
                 // Log when we are fetching with a new time trigger.
                 // android.util.Log.d("FlashcardViewModel", "Refreshing due cards with time: $triggeredTime")
-                repository.getDueCards() // This will now use the current time due to repository change
+                // When refresh is triggered, we default to loading due cards (normal review)
+                repository.getDueCards()
             }.collectLatest { cards ->
                     val shuffledCards = cards.shuffled()
                     // Reset session counters if the set of card IDs has changed.
+                    // This should happen when the mode or the actual list of cards changes significantly.
                     val oldIds = _uiState.value.dueCardsList.map { it.id }.toSet()
                     val newIds = shuffledCards.map { it.id }.toSet()
                     if (oldIds != newIds) {
@@ -59,24 +68,29 @@ class FlashcardViewModel(
                     }
 
                     _uiState.update { currentState ->
+                        // Determine reviewMode based on whether cards were found by getDueCards
+                        val newReviewMode = if (shuffledCards.isNotEmpty()) ReviewMode.NORMAL else ReviewMode.NONE
+
                         var newIndex = 0 // Default to 0
                         val currentCardId = currentState.currentCard?.id
 
                         if (shuffledCards.isNotEmpty()) {
-                            if (currentCardId != null) {
+                            if (currentCardId != null && currentState.reviewMode == newReviewMode) { // Preserve index if mode is same
                                 val foundIdx = shuffledCards.indexOfFirst { it.id == currentCardId }
                                 if (foundIdx != -1) {
                                     newIndex = foundIdx
-                                } else {
-                                    // Current card is no longer in the list, newIndex remains 0 (first card of new list)
                                 }
                             }
-                            // Ensure newIndex is within bounds if it was from previous state and list shrank
-                            if (newIndex >= shuffledCards.size) {
+                            if (newIndex >= shuffledCards.size) { // Ensure index is valid
                                 newIndex = 0
                             }
                         }
-                        // If shuffledCards is empty, newIndex remains 0, currentCard will be null.
+
+                        // Reset session counters if mode changes or card set changes significantly
+                        if (currentState.reviewMode != newReviewMode || oldIds != shuffledCards.map{it.id}.toSet()) {
+                            cardsReviewedThisSession = 0
+                            sessionStartTime = System.currentTimeMillis()
+                        }
 
                         currentState.copy(
                             dueCardsList = shuffledCards,
@@ -84,10 +98,38 @@ class FlashcardViewModel(
                             currentCard = shuffledCards.getOrNull(newIndex),
                             progressText = if (shuffledCards.isEmpty()) "No cards due!" else "Card ${newIndex + 1}/${shuffledCards.size}",
                             isDeckEmpty = shuffledCards.isEmpty(),
-                            showFlipHint = (currentState.currentCard?.id != shuffledCards.getOrNull(newIndex)?.id && shuffledCards.isNotEmpty()) || (shuffledCards.isNotEmpty() && newIndex == 0 && cardsReviewedThisSession == 0)
+                            reviewMode = newReviewMode,
+                            showFlipHint = (currentState.currentCard?.id != shuffledCards.getOrNull(newIndex)?.id && shuffledCards.isNotEmpty()) || (shuffledCards.isNotEmpty() && newIndex == 0 && cardsReviewedThisSession == 0 && newReviewMode != ReviewMode.NONE)
                         )
                     }
                 }
+        }
+    }
+
+    fun startManualReview() {
+        viewModelScope.launch {
+            val allCards = repository.getAllCards().shuffled() // Assuming getAllCards() exists and returns Flow<List<Flashcard>> or List<Flashcard>
+            // If repository.getAllCards() returns a Flow, collect it:
+            // repository.getAllCards().firstOrNull()?.shuffled() ?: emptyList()
+            // For simplicity, assuming it's a suspend fun returning List:
+            // val allCards = repository.getAllCards().shuffled()
+            // Based on FlashcardRepository, getAllCards returns Flow.
+
+            val cards = repository.getAllCards().firstOrNull()?.shuffled() ?: emptyList()
+            cardsReviewedThisSession = 0
+            sessionStartTime = System.currentTimeMillis()
+
+            _uiState.update {
+                it.copy(
+                    dueCardsList = cards,
+                    currentCardIndex = 0,
+                    currentCard = cards.getOrNull(0),
+                    progressText = if (cards.isEmpty()) "No cards in deck." else "Card 1/${cards.size}",
+                    isDeckEmpty = cards.isEmpty(),
+                    reviewMode = ReviewMode.MANUAL,
+                    showFlipHint = cards.isNotEmpty() // Show hint if manual review starts with cards
+                )
+            }
         }
     }
 
@@ -191,6 +233,9 @@ class FlashcardViewModel(
     // Add this public function to be called when the screen is resumed or becomes active
     fun onResume() {
         // android.util.Log.d("FlashcardViewModel", "onResume called, triggering refresh.")
+        // Only trigger refresh if not in manual mode, or perhaps always to reset to due cards?
+        // Current behavior: onResume re-fetches due cards, effectively ending manual review.
+        // This might be desired. If not, add a condition: if (_uiState.value.reviewMode != ReviewMode.MANUAL)
         refreshTrigger.value = System.currentTimeMillis()
     }
 }

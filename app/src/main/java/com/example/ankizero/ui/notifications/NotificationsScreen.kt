@@ -15,7 +15,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavController // Added NavController import
 import com.example.ankizero.AnkiZeroApplication
+import com.example.ankizero.Screen // Added Screen import
 import com.example.ankizero.data.database.AppDatabase // Added import
 import com.example.ankizero.data.entity.Flashcard
 import com.example.ankizero.data.repository.FlashcardRepository // Added import
@@ -41,11 +43,64 @@ val previewDueCards = List(3) { index ->
 @Composable
 fun NotificationsScreen(
     application: Application = LocalContext.current.applicationContext as Application,
-    repository: FlashcardRepository
+    repository: FlashcardRepository,
+    navController: NavController // Added NavController
 ) {
     val applicationContext = LocalContext.current.applicationContext as AnkiZeroApplication
-    val viewModel: NotificationsViewModel = viewModel(factory = NotificationsViewModelFactory(applicationContext, repository))
+    val dataStore = applicationContext.dataStore // Get DataStore instance
+    val viewModel: NotificationsViewModel = viewModel(factory = NotificationsViewModelFactory(applicationContext, repository, dataStore))
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+
+    var showTimePicker by remember { mutableStateOf(false) }
+
+    // Parse current reminder time for TimePickerDialog initial values
+    // uiState.reminderTime is in "hh:mm a" format, needs to be parsed to HH and mm
+    // viewModel._reminderTime.value is in "HH:mm"
+    val (initialHour, initialMinute) = remember(uiState.reminderTime) {
+        try {
+            // Directly use the 24-hour format string from the ViewModel's internal state
+            // This avoids parsing the display-formatted time.
+            // We need to access the raw "HH:mm" value that feeds into formatDisplayTime.
+            // This requires viewModel._reminderTime to be accessible or to have another state for "HH:mm".
+            // For now, let's assume we can get it or parse it carefully.
+            // The viewModel.uiState.reminderTime is already formatted.
+            // The source is viewModel._reminderTime.value (private).
+            // A better approach would be for the ViewModel to expose the raw HH:mm parts or string.
+            // Let's try parsing uiState.reminderTime carefully.
+            val timeParts = uiState.reminderTime.split(":", " ")
+            var hour = timeParts[0].toInt()
+            val minute = timeParts[1].toInt()
+            if (timeParts.size == 3 && timeParts[2].equals("PM", ignoreCase = true) && hour != 12) {
+                hour += 12
+            } else if (timeParts.size == 3 && timeParts[2].equals("AM", ignoreCase = true) && hour == 12) { // 12 AM is 00 hours
+                hour = 0
+            }
+            hour to minute
+        } catch (e: Exception) {
+            Log.e("NotificationsScreen", "Error parsing reminder time: ${uiState.reminderTime}", e)
+            9 to 0 // Default to 09:00 if parsing fails
+        }
+    }
+
+
+    if (showTimePicker) {
+        val timePickerDialog = android.app.TimePickerDialog(
+            context,
+            { _, selectedHour: Int, selectedMinute: Int ->
+                viewModel.updateReminderTime(String.format("%02d:%02d", selectedHour, selectedMinute))
+                showTimePicker = false
+            },
+            initialHour,
+            initialMinute,
+            false // Use 24-hour format if desired, or true for AM/PM
+        )
+        timePickerDialog.setOnCancelListener { showTimePicker = false }
+        timePickerDialog.show()
+        // To prevent dialog from re-appearing on recomposition after dismissal,
+        // ensure showTimePicker is correctly reset or use LaunchedEffect for showing dialog.
+        // For this case, setting showTimePicker = false in onDismiss/onCancel is usually sufficient.
+    }
 
     Scaffold(
         topBar = {
@@ -81,7 +136,7 @@ fun NotificationsScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text("Reminder Time")
-                TextButton(onClick = { /* TODO: Implement Time Picker */ }) {
+                TextButton(onClick = { showTimePicker = true }) {
                     Text(uiState.reminderTime, style = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.primary))
                 }
             }
@@ -115,8 +170,9 @@ fun NotificationsScreen(
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(
-                    onClick = { /* TODO: Navigate to FlashcardScreen or trigger review */
-                        Log.d("NotificationsScreen", "Review Now clicked")
+                    onClick = {
+                        Log.d("NotificationsScreen", "Review Now clicked, navigating to Flashcards")
+                        navController.navigate(Screen.Flashcards)
                     },
                     modifier = Modifier.align(Alignment.CenterHorizontally)
                 ) {
@@ -133,9 +189,17 @@ fun NotificationsScreen(
 fun NotificationsScreenPreviewLight() {
     val applicationContext = LocalContext.current.applicationContext as AnkiZeroApplication
     val repository = applicationContext.repository
+    // val dataStore = applicationContext.dataStore // Not strictly needed for this preview if NavController is stubbed
+
+    // Create a stub NavController for preview purposes
+    val navController = NavController(LocalContext.current) // Simple stub
 
     MaterialTheme(colorScheme = lightColorScheme()) {
-        NotificationsScreen(application = applicationContext, repository = repository)
+        NotificationsScreen(
+            application = applicationContext,
+            repository = repository,
+            navController = navController // Pass stub NavController
+        )
     }
 }
 
@@ -144,9 +208,17 @@ fun NotificationsScreenPreviewLight() {
 fun NotificationsScreenPreviewDark() {
     val applicationContext = LocalContext.current.applicationContext as AnkiZeroApplication
     val repository = applicationContext.repository
+    // val dataStore = applicationContext.dataStore // Not strictly needed for this preview
+
+    // Create a stub NavController for preview purposes
+    val navController = NavController(LocalContext.current) // Simple stub
 
     MaterialTheme(colorScheme = darkColorScheme()) {
-        NotificationsScreen(application = applicationContext, repository = repository)
+        NotificationsScreen(
+            application = applicationContext,
+            repository = repository,
+            navController = navController // Pass stub NavController
+        )
     }
 }
 
