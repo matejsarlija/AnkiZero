@@ -59,7 +59,7 @@ class FlashcardViewModel(
                 // When refresh is triggered, we default to loading due cards (normal review)
                 repository.getDueCards()
             }.collectLatest { cards ->
-                    val shuffledCards = cards.shuffled()
+                    val shuffledCards = cards.shuffled(kotlin.random.Random.Default)
                     // Reset session counters if the set of card IDs has changed.
                     // This should happen when the mode or the actual list of cards changes significantly.
                     val oldIds = _uiState.value.dueCardsList.map { it.id }.toSet()
