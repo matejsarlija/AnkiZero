@@ -1,7 +1,6 @@
 package com.example.ankizero.ui.notifications
 
 import android.app.Application
-import android.app.Application
 import androidx.datastore.core.DataStore // Added DataStore import
 import androidx.datastore.preferences.core.Preferences // Added Preferences import
 import androidx.datastore.preferences.core.edit // Added edit import

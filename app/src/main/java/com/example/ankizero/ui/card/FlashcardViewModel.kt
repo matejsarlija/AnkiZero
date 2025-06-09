@@ -9,6 +9,7 @@ import com.example.ankizero.data.repository.FlashcardRepository
 import com.example.ankizero.util.AnalyticsHelper
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlin.collections.shuffled
 // import kotlin.math.max // No longer used
 // import kotlin.math.min // No longer used
 // import kotlin.math.roundToInt // Not used after refactor
