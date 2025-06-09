@@ -15,6 +15,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLifecycleOwner // Added for Lifecycle
 import androidx.compose.ui.platform.testTag // Added for testTag
+import androidx.compose.material.icons.Icons // Added for Icons
+import androidx.compose.material.icons.filled.Style // Added for Style icon (example for folded cards)
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import android.app.Application
@@ -58,59 +60,131 @@ fun FlashcardScreen(
     }
 
     val currentCard = uiState.currentCard // Moved after DisposableEffect
+    val reviewMode = uiState.reviewMode // Get reviewMode
 
-    if (uiState.isDeckEmpty || currentCard == null) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("No cards due for review.")
-        }
-    } else {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceAround
-        ) {
-            FlashcardView(
-                modifier = Modifier.testTag("FlashcardView"), // Added testTag
-                frontText = currentCard.frenchWord,
-                backText = currentCard.englishTranslation,
-                onSwipeLeft = { viewModel.showNextCard(moveForward = true) },
-                onSwipeRight = { viewModel.showNextCard(moveForward = false) }
-            )
-
-            Text(uiState.progressText, modifier = Modifier.testTag("ProgressText")) // Added testTag
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
+    // Conditional UI based on reviewMode and currentCard
+    when {
+        // Case 1: Cards are loaded for review (either normal or manual)
+        currentCard != null -> {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceAround
             ) {
-                val haptic = LocalHapticFeedback.current
-                Button(
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        viewModel.processCardRating(isMemorized = false)
-                    },
-                    modifier = Modifier.testTag("NoButton") // Added testTag
+                FlashcardView(
+                    modifier = Modifier.testTag("FlashcardView"), // Added testTag
+                    frontText = currentCard.frenchWord,
+                    backText = currentCard.englishTranslation,
+                    onSwipeLeft = { viewModel.showNextCard(moveForward = true) },
+                    onSwipeRight = { viewModel.showNextCard(moveForward = false) }
+                )
+
+                Text(uiState.progressText, modifier = Modifier.testTag("ProgressText")) // Added testTag
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    Text("No")
+                    val haptic = LocalHapticFeedback.current
+                    Button(
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            viewModel.processCardRating(isMemorized = false)
+                        },
+                        modifier = Modifier.testTag("NoButton") // Added testTag
+                    ) {
+                        Text("No")
+                    }
+                    Button(
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            viewModel.processCardRating(isMemorized = true)
+                        },
+                        modifier = Modifier.testTag("MemorizedButton") // Added testTag
+                    ) {
+                        Text("Memorized")
+                    }
                 }
-                Button(
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        viewModel.processCardRating(isMemorized = true)
-                    },
-                    modifier = Modifier.testTag("MemorizedButton") // Added testTag
-                ) {
-                    Text("Memorized")
+            }
+        }
+        // Case 2: No cards due (initial state) and not in manual review mode yet
+        reviewMode == ReviewMode.NONE && uiState.isDeckEmpty -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable { viewModel.startManualReview() } // Click to start manual review
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = Icons.Filled.Style, // Placeholder for folded cards stack
+                        contentDescription = "No cards due. Click to review all.",
+                        modifier = Modifier.size(100.dp) // Adjust size as needed
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("No cards currently due.")
+                    Text("Tap to review all cards.", style = MaterialTheme.typography.bodySmall)
                 }
+            }
+        }
+        // Case 3: Manual review started but deck is empty, or normal review resulted in empty (already covered by currentCard != null)
+        // This state specifically catches if manual review was initiated but no cards exist at all.
+        reviewMode == ReviewMode.MANUAL && uiState.isDeckEmpty -> {
+             Box(
+                modifier = Modifier.fillMaxSize().padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("No cards in your deck to review.")
+            }
+        }
+        // Fallback for any other unhandled empty states (e.g. NORMAL mode, isDeckEmpty=true)
+        uiState.isDeckEmpty -> {
+             Box(
+                modifier = Modifier.fillMaxSize().padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                // This text might be the same as for NONE, but context is slightly different
+                Text("No cards available for review in the current mode.")
+            }
+        }
+        // Loading state or other intermediate states (optional)
+        else -> {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator() // Show a loading spinner
             }
         }
     }
 }
+        // Original structure:
+        // if (uiState.isDeckEmpty || currentCard == null) {
+        //     Box(
+        //         modifier = Modifier.fillMaxSize(),
+        //         contentAlignment = Alignment.Center
+        //     ) {
+        //         Text("No cards due for review.")
+        //     }
+        // } else {
+        //     Column(
+        //         modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            //         .fillMaxSize()
+            //         .padding(16.dp),
+            //     horizontalAlignment = Alignment.CenterHorizontally,
+            //     verticalArrangement = Arrangement.SpaceAround
+            // ) {
+            //     FlashcardView(...)
+            //     Text(uiState.progressText, ...)
+            //     Row(...) { /* Buttons */ }
+            // }
+            // }
+// } // This closing brace was removed due to the when expression replacing the if/else
 
 /*
 TODO: UI Test Scenarios for FlashcardScreen:

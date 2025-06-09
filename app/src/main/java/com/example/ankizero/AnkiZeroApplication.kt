@@ -14,13 +14,20 @@ import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.analytics.ktx.analytics
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.google.firebase.ktx.Firebase
+import androidx.datastore.core.DataStore // Added DataStore import
+import androidx.datastore.preferences.core.Preferences // Added Preferences import
+import androidx.datastore.preferences.preferencesDataStore // Added preferencesDataStore import
 
+
+// Define DataStore at the top level, tied to the Application context
+val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
 class AnkiZeroApplication : Application() {
 
     // Lazily initialize database and repository so they are created only when needed
     val database: AppDatabase by lazy { AppDatabase.getDatabase(this) }
     val repository: FlashcardRepository by lazy { FlashcardRepository(database.flashCardDao()) }
+    // DataStore is already defined at the top-level using Context.dataStore extension
 
     lateinit var firebaseAnalytics: FirebaseAnalytics
         private set // Make it accessible read-only if needed, or keep private
