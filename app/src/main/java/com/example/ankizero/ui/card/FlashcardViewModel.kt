@@ -10,6 +10,7 @@ import com.example.ankizero.util.AnalyticsHelper
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlin.collections.shuffled
+import kotlin.random.Random
 // import kotlin.math.max // No longer used
 // import kotlin.math.min // No longer used
 // import kotlin.math.roundToInt // Not used after refactor
@@ -116,7 +117,7 @@ class FlashcardViewModel(
             // val allCards = repository.getAllCards().shuffled()
             // Based on FlashcardRepository, getAllCards returns Flow.
 
-            val cards = repository.getAllCards().firstOrNull()?.shuffled() ?: emptyList()
+            val cards = repository.getAllCards().firstOrNull()?.shuffled(kotlin.random.Random.Default) ?: emptyList()
             cardsReviewedThisSession = 0
             sessionStartTime = System.currentTimeMillis()
 
