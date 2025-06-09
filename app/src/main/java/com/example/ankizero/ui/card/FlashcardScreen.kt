@@ -161,30 +161,6 @@ fun FlashcardScreen(
         }
     }
 }
-        // Original structure:
-        // if (uiState.isDeckEmpty || currentCard == null) {
-        //     Box(
-        //         modifier = Modifier.fillMaxSize(),
-        //         contentAlignment = Alignment.Center
-        //     ) {
-        //         Text("No cards due for review.")
-        //     }
-        // } else {
-        //     Column(
-        //         modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            //         .fillMaxSize()
-            //         .padding(16.dp),
-            //     horizontalAlignment = Alignment.CenterHorizontally,
-            //     verticalArrangement = Arrangement.SpaceAround
-            // ) {
-            //     FlashcardView(...)
-            //     Text(uiState.progressText, ...)
-            //     Row(...) { /* Buttons */ }
-            // }
-            // }
-// } // This closing brace was removed due to the when expression replacing the if/else
 
 /*
 TODO: UI Test Scenarios for FlashcardScreen:
