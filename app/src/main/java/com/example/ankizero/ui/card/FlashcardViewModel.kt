@@ -9,8 +9,8 @@ import com.example.ankizero.data.repository.FlashcardRepository
 import com.example.ankizero.util.AnalyticsHelper
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import kotlin.collections.shuffled
 import kotlin.random.Random
+// Removed: import kotlin.collections.shuffled - this is redundant
 // import kotlin.math.max // No longer used
 // import kotlin.math.min // No longer used
 // import kotlin.math.roundToInt // Not used after refactor
@@ -59,65 +59,60 @@ class FlashcardViewModel(
                 // When refresh is triggered, we default to loading due cards (normal review)
                 repository.getDueCards()
             }.collectLatest { cards ->
-                    val shuffledCards = cards.shuffled()
-                    // Reset session counters if the set of card IDs has changed.
-                    // This should happen when the mode or the actual list of cards changes significantly.
-                    val oldIds = _uiState.value.dueCardsList.map { it.id }.toSet()
-                    val newIds = shuffledCards.map { it.id }.toSet()
-                    if (oldIds != newIds) {
+                val shuffledCards = cards.shuffled() // Fixed: Use consistent shuffled() call
+                // Reset session counters if the set of card IDs has changed.
+                // This should happen when the mode or the actual list of cards changes significantly.
+                val oldIds = _uiState.value.dueCardsList.map { it.id }.toSet()
+                val newIds = shuffledCards.map { it.id }.toSet()
+                if (oldIds != newIds) {
+                    cardsReviewedThisSession = 0
+                    sessionStartTime = System.currentTimeMillis()
+                }
+
+                _uiState.update { currentState ->
+                    // Determine reviewMode based on whether cards were found by getDueCards
+                    val newReviewMode = if (shuffledCards.isNotEmpty()) ReviewMode.NORMAL else ReviewMode.NONE
+
+                    var newIndex = 0 // Default to 0
+                    val currentCardId = currentState.currentCard?.id
+
+                    if (shuffledCards.isNotEmpty()) {
+                        if (currentCardId != null && currentState.reviewMode == newReviewMode) { // Preserve index if mode is same
+                            val foundIdx = shuffledCards.indexOfFirst { it.id == currentCardId }
+                            if (foundIdx != -1) {
+                                newIndex = foundIdx
+                            }
+                        }
+                        if (newIndex >= shuffledCards.size) { // Ensure index is valid
+                            newIndex = 0
+                        }
+                    }
+
+                    // Reset session counters if mode changes or card set changes significantly
+                    if (currentState.reviewMode != newReviewMode || oldIds != shuffledCards.map{it.id}.toSet()) {
                         cardsReviewedThisSession = 0
                         sessionStartTime = System.currentTimeMillis()
                     }
 
-                    _uiState.update { currentState ->
-                        // Determine reviewMode based on whether cards were found by getDueCards
-                        val newReviewMode = if (shuffledCards.isNotEmpty()) ReviewMode.NORMAL else ReviewMode.NONE
-
-                        var newIndex = 0 // Default to 0
-                        val currentCardId = currentState.currentCard?.id
-
-                        if (shuffledCards.isNotEmpty()) {
-                            if (currentCardId != null && currentState.reviewMode == newReviewMode) { // Preserve index if mode is same
-                                val foundIdx = shuffledCards.indexOfFirst { it.id == currentCardId }
-                                if (foundIdx != -1) {
-                                    newIndex = foundIdx
-                                }
-                            }
-                            if (newIndex >= shuffledCards.size) { // Ensure index is valid
-                                newIndex = 0
-                            }
-                        }
-
-                        // Reset session counters if mode changes or card set changes significantly
-                        if (currentState.reviewMode != newReviewMode || oldIds != shuffledCards.map{it.id}.toSet()) {
-                            cardsReviewedThisSession = 0
-                            sessionStartTime = System.currentTimeMillis()
-                        }
-
-                        currentState.copy(
-                            dueCardsList = shuffledCards,
-                            currentCardIndex = newIndex,
-                            currentCard = shuffledCards.getOrNull(newIndex),
-                            progressText = if (shuffledCards.isEmpty()) "No cards due!" else "Card ${newIndex + 1}/${shuffledCards.size}",
-                            isDeckEmpty = shuffledCards.isEmpty(),
-                            reviewMode = newReviewMode,
-                            showFlipHint = (currentState.currentCard?.id != shuffledCards.getOrNull(newIndex)?.id && shuffledCards.isNotEmpty()) || (shuffledCards.isNotEmpty() && newIndex == 0 && cardsReviewedThisSession == 0 && newReviewMode != ReviewMode.NONE)
-                        )
-                    }
+                    currentState.copy(
+                        dueCardsList = shuffledCards,
+                        currentCardIndex = newIndex,
+                        currentCard = shuffledCards.getOrNull(newIndex),
+                        progressText = if (shuffledCards.isEmpty()) "No cards due!" else "Card ${newIndex + 1}/${shuffledCards.size}",
+                        isDeckEmpty = shuffledCards.isEmpty(),
+                        reviewMode = newReviewMode,
+                        showFlipHint = (currentState.currentCard?.id != shuffledCards.getOrNull(newIndex)?.id && shuffledCards.isNotEmpty()) || (shuffledCards.isNotEmpty() && newIndex == 0 && cardsReviewedThisSession == 0 && newReviewMode != ReviewMode.NONE)
+                    )
                 }
+            }
         }
     }
 
     fun startManualReview() {
         viewModelScope.launch {
-            val allCards = repository.getAllCards().shuffled() // Assuming getAllCards() exists and returns Flow<List<Flashcard>> or List<Flashcard>
-            // If repository.getAllCards() returns a Flow, collect it:
-            // repository.getAllCards().firstOrNull()?.shuffled() ?: emptyList()
-            // For simplicity, assuming it's a suspend fun returning List:
-            // val allCards = repository.getAllCards().shuffled()
-            // Based on FlashcardRepository, getAllCards returns Flow.
-
-            val cards = repository.getAllCards().firstOrNull()?.shuffled(kotlin.random.Random.Default) ?: emptyList()
+            // Fixed: Proper null handling and consistent shuffling
+            val allCardsList: List<Flashcard>? = repository.getAllCards().firstOrNull()
+            val cards = allCardsList?.shuffled() ?: emptyList() // Removed unnecessary Random.Default parameter
             cardsReviewedThisSession = 0
             sessionStartTime = System.currentTimeMillis()
 
@@ -162,11 +157,11 @@ class FlashcardViewModel(
             // However, repository.processReview is suspend and Flow emission is concurrent.
             // A robust way is to check conditions that would lead to an empty list.
             if (listSizeBeforeReview == 1 && currentUiStateValue.dueCardsList.any { it.id == processedCardId }) {
-                 // Check against the current state of dueCardsList which should have been updated by the flow
-                 // This check might be tricky due to timing of flow emission.
-                 // A simpler and more direct check: if the card processed was the last one.
-                 // The flow will update the list to empty if this was the last card.
-                 // The check for session completion can be done when the flow emits an empty list.
+                // Check against the current state of dueCardsList which should have been updated by the flow
+                // This check might be tricky due to timing of flow emission.
+                // A simpler and more direct check: if the card processed was the last one.
+                // The flow will update the list to empty if this was the last card.
+                // The check for session completion can be done when the flow emits an empty list.
 
                 // The problem description asks: "Logging for AnalyticsHelper.logReviewSessionCompleted should happen
                 // when the dueCardsList becomes empty *as a result of a review*."
