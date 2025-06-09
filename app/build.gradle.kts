@@ -80,6 +80,7 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test) // Added
     testImplementation(libs.mockito.core) // Added Mockito
+    testImplementation(libs.mockk) // Added MockK
     testImplementation(libs.kotlin.test.junit)
     testImplementation(libs.mockito.kotlin)
     testImplementation(libs.androidx.ui.test.junit4)
