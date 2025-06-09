@@ -13,6 +13,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalLifecycleOwner // Added for Lifecycle
 import androidx.compose.ui.platform.testTag // Added for testTag
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -22,6 +23,10 @@ import com.example.ankizero.data.database.AppDatabase
 import com.example.ankizero.data.repository.FlashcardRepository
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle // Preferred
+import androidx.compose.runtime.DisposableEffect // Added for Lifecycle
+import androidx.lifecycle.Lifecycle // Added for Lifecycle
+import androidx.lifecycle.LifecycleEventObserver // Added for Lifecycle
+import androidx.lifecycle.LifecycleOwner // Added for Lifecycle
 
 // If collectAsStateWithLifecycle causes issues for the worker, fallback to:
 // import androidx.compose.runtime.collectAsState
@@ -37,7 +42,22 @@ fun FlashcardScreen(
     // repository is now a parameter, no need to fetch from applicationContext here for the screen itself
     val viewModel: FlashcardViewModel = viewModel(factory = FlashcardViewModelFactory(applicationContext, repository))
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val currentCard = uiState.currentCard
+
+    // Add Lifecycle observer to call viewModel.onResume()
+    val lifecycleOwner: LifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.onResume()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    val currentCard = uiState.currentCard // Moved after DisposableEffect
 
     if (uiState.isDeckEmpty || currentCard == null) {
         Box(
