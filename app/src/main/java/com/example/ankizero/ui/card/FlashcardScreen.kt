@@ -17,6 +17,7 @@ import androidx.compose.ui.platform.LocalLifecycleOwner // Added for Lifecycle
 import androidx.compose.ui.platform.testTag // Added for testTag
 import androidx.compose.material.icons.Icons // Added for Icons
 import androidx.compose.material.icons.filled.Style // Added for Style icon (example for folded cards)
+import com.example.ankizero.ui.card.StackedCardsAnimation // Added import
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import android.app.Application
@@ -114,20 +115,13 @@ fun FlashcardScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .clickable { viewModel.startManualReview() } // Click to start manual review
+                    // .clickable { viewModel.startManualReview() } // REMOVED
                     .padding(16.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = Icons.Filled.Style, // Placeholder for folded cards stack
-                        contentDescription = "No cards due. Click to review all.",
-                        modifier = Modifier.size(100.dp) // Adjust size as needed
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("No cards currently due.")
-                    Text("Tap to review all cards.", style = MaterialTheme.typography.bodySmall)
-                }
+                StackedCardsAnimation(
+                    onClick = { viewModel.startManualReview() }
+                )
             }
         }
         // Case 3: Manual review started but deck is empty, or normal review resulted in empty (already covered by currentCard != null)
