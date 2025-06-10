@@ -1,23 +1,31 @@
 package com.example.ankizero.ui.card
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.platform.LocalLifecycleOwner // Added for Lifecycle
-import androidx.compose.ui.platform.testTag // Added for testTag
-import androidx.compose.material.icons.Icons // Added for Icons
-import androidx.compose.material.icons.filled.Style // Added for Style icon (example for folded cards)
-import com.example.ankizero.ui.card.StackedCardsAnimation // Added import
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.platform.testTag
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Style
+import com.example.ankizero.ui.card.StackedCardsAnimation
+import com.example.ankizero.ui.theme.*
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import android.app.Application
@@ -25,28 +33,61 @@ import com.example.ankizero.AnkiZeroApplication
 import com.example.ankizero.data.database.AppDatabase
 import com.example.ankizero.data.repository.FlashcardRepository
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle // Preferred
-import androidx.compose.runtime.DisposableEffect // Added for Lifecycle
-import androidx.lifecycle.Lifecycle // Added for Lifecycle
-import androidx.lifecycle.LifecycleEventObserver // Added for Lifecycle
-import androidx.lifecycle.LifecycleOwner // Added for Lifecycle
-
-// If collectAsStateWithLifecycle causes issues for the worker, fallback to:
-// import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.DisposableEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import kotlin.math.abs
 
 @Composable
 fun FlashcardScreen(
-    // viewModel: FlashcardViewModel = viewModel(factory = FlashcardViewModelFactory()) // Original
-    // Updated to provide application and repository to the factory
     application: Application = LocalContext.current.applicationContext as Application,
     repository: FlashcardRepository
 ) {
     val applicationContext = LocalContext.current.applicationContext as AnkiZeroApplication
-    // repository is now a parameter, no need to fetch from applicationContext here for the screen itself
     val viewModel: FlashcardViewModel = viewModel(factory = FlashcardViewModelFactory(applicationContext, repository))
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    // Add Lifecycle observer to call viewModel.onResume()
+    // Animated background gradient
+    val infiniteTransition = rememberInfiniteTransition(label = "backgroundGradient")
+    val backgroundOffset by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(20000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "backgroundOffset"
+    )
+
+    val isDark = isSystemInDarkTheme()
+    val backgroundGradient = if (isDark) {
+        Brush.verticalGradient(
+            colors = listOf(
+                Color(0xFF1A1A2E).copy(alpha = 0.95f),
+                Color(0xFF16213E).copy(alpha = 0.90f),
+                Color(0xFF0F3460).copy(alpha = 0.85f)
+            ),
+            startY = backgroundOffset * 300f,
+            endY = (backgroundOffset + 1f) * 300f
+        )
+    } else {
+        Brush.verticalGradient(
+            colors = listOf(
+                Color(0xFFF8F9FA),
+                Color(0xFFE9ECEF).copy(alpha = 0.8f),
+                Color(0xFFDEE2E6).copy(alpha = 0.6f)
+            ),
+            startY = backgroundOffset * 200f,
+            endY = (backgroundOffset + 1f) * 200f
+        )
+    }
+
+    // Add Lifecycle observer
     val lifecycleOwner: LifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -60,168 +101,281 @@ fun FlashcardScreen(
         }
     }
 
-    val currentCard = uiState.currentCard // Moved after DisposableEffect
-    val reviewMode = uiState.reviewMode // Get reviewMode
+    val currentCard = uiState.currentCard
+    val reviewMode = uiState.reviewMode
 
-    // Conditional UI based on reviewMode and currentCard
-    when {
-        // Case 1: Cards are loaded for review (either normal or manual)
-        currentCard != null -> {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.SpaceAround
-            ) {
-                FlashcardView(
-                    modifier = Modifier.testTag("FlashcardView"), // Added testTag
-                    frontText = currentCard.frenchWord,
-                    backText = currentCard.englishTranslation,
-                    onSwipeLeft = { viewModel.showNextCard(moveForward = true) },
-                    onSwipeRight = { viewModel.showNextCard(moveForward = false) }
-                )
-
-                Text(uiState.progressText, modifier = Modifier.testTag("ProgressText")) // Added testTag
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(backgroundGradient)
+    ) {
+        when {
+            currentCard != null -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    val haptic = LocalHapticFeedback.current
-                    Button(
-                        onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            viewModel.processCardRating(isMemorized = false)
-                        },
-                        modifier = Modifier.testTag("NoButton") // Added testTag
-                    ) {
-                        Text("No")
-                    }
-                    Button(
-                        onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            viewModel.processCardRating(isMemorized = true)
-                        },
-                        modifier = Modifier.testTag("MemorizedButton") // Added testTag
-                    ) {
-                        Text("Memorized")
-                    }
+                    // Enhanced progress indicator
+                    EnhancedProgressIndicator(
+                        progressText = uiState.progressText,
+                        modifier = Modifier.testTag("ProgressText")
+                    )
+
+                    FlashcardView(
+                        modifier = Modifier.testTag("FlashcardView"),
+                        frontText = currentCard.frenchWord,
+                        backText = currentCard.englishTranslation,
+                        onSwipeLeft = { viewModel.showNextCard(moveForward = true) },
+                        onSwipeRight = { viewModel.showNextCard(moveForward = false) }
+                    )
+
+                    EnhancedButtonRow(
+                        onNoClick = { viewModel.processCardRating(isMemorized = false) },
+                        onMemorizedClick = { viewModel.processCardRating(isMemorized = true) }
+                    )
                 }
             }
-        }
-        // Case 2: No cards due (initial state) and not in manual review mode yet
-        reviewMode == ReviewMode.NONE && uiState.isDeckEmpty -> {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    // .clickable { viewModel.startManualReview() } // REMOVED
-                    .padding(16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                StackedCardsAnimation(
-                    onClick = { viewModel.startManualReview() }
-                )
+            reviewMode == ReviewMode.NONE && uiState.isDeckEmpty -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    StackedCardsAnimation(
+                        onClick = { viewModel.startManualReview() }
+                    )
+                }
             }
-        }
-        // Case 3: Manual review started but deck is empty, or normal review resulted in empty (already covered by currentCard != null)
-        // This state specifically catches if manual review was initiated but no cards exist at all.
-        reviewMode == ReviewMode.MANUAL && uiState.isDeckEmpty -> {
-             Box(
-                modifier = Modifier.fillMaxSize().padding(16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("No cards in your deck to review.")
+            reviewMode == ReviewMode.MANUAL && uiState.isDeckEmpty -> {
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "No cards in your deck to review.",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                }
             }
-        }
-        // Fallback for any other unhandled empty states (e.g. NORMAL mode, isDeckEmpty=true)
-        uiState.isDeckEmpty -> {
-             Box(
-                modifier = Modifier.fillMaxSize().padding(16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                // This text might be the same as for NONE, but context is slightly different
-                Text("No cards available for review in the current mode.")
+            uiState.isDeckEmpty -> {
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "No cards available for review in the current mode.",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                }
             }
-        }
-        // Loading state or other intermediate states (optional)
-        else -> {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator() // Show a loading spinner
+            else -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(48.dp),
+                        strokeWidth = 4.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         }
     }
 }
 
-/*
-TODO: UI Test Scenarios for FlashcardScreen:
-1.  **Initial Card Display:**
-    - Verify that the front of the first due card is displayed (e.g., check for specific French word).
-    - Verify progress text is correct (e.g., "Card 1/X").
-2.  **Flip Animation and Content:**
-    - Tap on the card.
-    - Verify the card flips (animation itself is hard to verify in unit UI tests, focus on state change).
-    - Verify the back of the card is displayed (e.g., corresponding English translation).
-    - Tap again, verify it flips back to the front.
-3.  **"Memorized" Button:**
-    - Click the "Memorized" button.
-    - Verify the current card changes (moves to the next card or finishes deck).
-    - Verify progress text updates.
-    - (Advanced) If using a test ViewModel/repository, verify SRS logic was triggered.
-4.  **"No" Button:**
-    - Click the "No" button.
-    - Verify the current card changes.
-    - Verify progress text updates.
-    - (Advanced) Verify SRS logic was triggered.
-5.  **Swipe Gestures:**
-    - Swipe left on the card.
-    - Verify the current card changes (moves to the next card).
-    - Swipe right on the card.
-    - Verify the current card changes (moves to the previous card).
-6.  **Deck Completion:**
-    - Navigate through all cards until the deck is empty/finished.
-    - Verify the "Deck finished!" or "No cards due" message is displayed.
-    - Verify control buttons might be hidden or disabled.
-7.  **Empty State:**
-    - If the ViewModel is initialized with no due cards.
-    - Verify "No cards due for review." message is displayed.
-8.  **Configuration Changes:** (e.g., screen rotation)
-    - Verify current card and flip state are preserved.
-    (Requires Hilt, TestTags on Composables, and potentially Espresso Idling Resources for real data)
-*/
+@Composable
+fun EnhancedProgressIndicator(
+    progressText: String,
+    modifier: Modifier = Modifier
+) {
+    val isDark = isSystemInDarkTheme()
+
+    Card(
+        modifier = modifier
+            .padding(horizontal = 16.dp)
+            .shadow(8.dp, RoundedCornerShape(20.dp)),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDark) Color(0xFF2D3748).copy(alpha = 0.9f)
+            else Color.White.copy(alpha = 0.95f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+    ) {
+        Text(
+            text = progressText,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontWeight = FontWeight.SemiBold
+            ),
+            color = if (isDark) Color(0xFF90CDF4) else Color(0xFF2B6CB0)
+        )
+    }
+}
+
+@Composable
+fun EnhancedButtonRow(
+    onNoClick: () -> Unit,
+    onMemorizedClick: () -> Unit
+) {
+    val haptic = LocalHapticFeedback.current
+    val isDark = isSystemInDarkTheme()
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(20.dp)
+    ) {
+        // No Button - Enhanced with ripple effect
+        EnhancedButton(
+            onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onNoClick()
+            },
+            text = "No",
+            containerColor = if (isDark) Color(0xFF742A2A) else Color(0xFFFC8181),
+            contentColor = if (isDark) Color(0xFFFC8181) else Color.White,
+            modifier = Modifier
+                .weight(1f)
+                .testTag("NoButton")
+        )
+
+        // Memorized Button - Enhanced with success colors
+        EnhancedButton(
+            onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onMemorizedClick()
+            },
+            text = "Memorized",
+            containerColor = if (isDark) Color(0xFF2F855A) else Color(0xFF48BB78),
+            contentColor = Color.White,
+            modifier = Modifier
+                .weight(1f)
+                .testTag("MemorizedButton")
+        )
+    }
+}
+
+@Composable
+fun EnhancedButton(
+    onClick: () -> Unit,
+    text: String,
+    containerColor: Color,
+    contentColor: Color,
+    modifier: Modifier = Modifier
+) {
+    var isPressed by remember { mutableStateOf(false) }
+
+    val animatedScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.95f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "buttonScale"
+    )
+
+    Button(
+        onClick = onClick,
+        modifier = modifier
+            .height(56.dp)
+            .graphicsLayer {
+                scaleX = animatedScale
+                scaleY = animatedScale
+            }
+            .pointerInput(Unit) {
+                detectHorizontalDragGestures(
+                    onDragStart = { isPressed = true },
+                    onDragEnd = { isPressed = false },
+                    onHorizontalDrag = { _, _ -> }
+                )
+            },
+        shape = RoundedCornerShape(16.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = containerColor,
+            contentColor = contentColor
+        ),
+        elevation = ButtonDefaults.buttonElevation(
+            defaultElevation = 6.dp,
+            pressedElevation = 2.dp
+        )
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontWeight = FontWeight.Bold
+            )
+        )
+    }
+}
 
 @Composable
 fun FlashcardView(
-    modifier: Modifier = Modifier, // Added modifier parameter
+    modifier: Modifier = Modifier,
     frontText: String,
     backText: String,
     onSwipeLeft: () -> Unit,
     onSwipeRight: () -> Unit
 ) {
     var flipped by remember { mutableStateOf(false) }
+    var dragOffsetX by remember { mutableFloatStateOf(0f) }
+    val isDark = isSystemInDarkTheme()
+
+    // Enhanced flip animation with spring
     val animatedRotationY by animateFloatAsState(
         targetValue = if (flipped) 180f else 0f,
-        animationSpec = tween(durationMillis = 600), // Slightly longer for smoother feel
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
         label = "rotationY"
     )
 
-    var dragOffsetX by remember { mutableFloatStateOf(0f) }
+    // Dynamic card colors based on drag
+    val dragProgress = (abs(dragOffsetX) / 300f).coerceIn(0f, 1f)
+    val cardColor by animateColorAsState(
+        targetValue = when {
+            dragOffsetX > 50f -> if (isDark) Color(0xFF2F855A).copy(alpha = 0.3f) else Color(0xFF48BB78).copy(alpha = 0.2f)
+            dragOffsetX < -50f -> if (isDark) Color(0xFF742A2A).copy(alpha = 0.3f) else Color(0xFFFC8181).copy(alpha = 0.2f)
+            else -> if (isDark) MidGrayNoise.copy(alpha = 0.9f) else Color(0xFFF5F5F5) // Slightly less white
+        },
+        animationSpec = tween(200),
+        label = "cardColor"
+    )
+
+    // Enhanced shadow and elevation
+    val cardElevation by animateFloatAsState(
+        targetValue = if (abs(dragOffsetX) > 50f) 12f else 8f,
+        animationSpec = tween(200),
+        label = "cardElevation"
+    )
 
     Card(
-        modifier = modifier // Use passed modifier
-            .fillMaxWidth(0.85f)
-            .aspectRatio(1.6f)
+        modifier = modifier
+            .fillMaxWidth(0.88f)
+            .aspectRatio(1.5f)
+            .shadow(
+                elevation = cardElevation.dp,
+                shape = RoundedCornerShape(24.dp),
+                spotColor = if (isDark) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.15f)
+            )
             .graphicsLayer {
                 this.rotationY = animatedRotationY
-                // Improve perspective for 3D effect
-                this.cameraDistance = 12f * density
-                // Apply horizontal translation based on drag for swipe feedback
-                this.translationX = dragOffsetX
+                this.cameraDistance = 16f * density
+                this.translationX = dragOffsetX * 0.8f // Slightly dampened movement
+                this.scaleX = 1f - (dragProgress * 0.05f) // Subtle scale effect
+                this.scaleY = 1f - (dragProgress * 0.05f)
             }
-            .clickable { flipped = !flipped }
+            .clickable {
+                flipped = !flipped
+            }
             .pointerInput(Unit) {
                 detectHorizontalDragGestures(
                     onDragStart = { dragOffsetX = 0f },
@@ -230,50 +384,76 @@ fun FlashcardView(
                         dragOffsetX += dragAmount
                     },
                     onDragEnd = {
-                        val swipeThreshold = 150f // Increased threshold for a more deliberate swipe
+                        val swipeThreshold = 120f
                         when {
-                            dragOffsetX > swipeThreshold -> onSwipeRight() // Swiped right (show previous)
-                            dragOffsetX < -swipeThreshold -> onSwipeLeft()  // Swiped left (show next)
+                            dragOffsetX > swipeThreshold -> onSwipeRight()
+                            dragOffsetX < -swipeThreshold -> onSwipeLeft()
                         }
-                        dragOffsetX = 0f // Reset offset smoothly or immediately
+                        dragOffsetX = 0f
                     }
                 )
             },
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-        shape = MaterialTheme.shapes.medium // Using Material3 shapes
+        elevation = CardDefaults.cardElevation(defaultElevation = cardElevation.dp),
+        colors = CardDefaults.cardColors(containerColor = cardColor),
+        shape = RoundedCornerShape(24.dp)
     ) {
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            // Content changes based on the flip animation progress
-            if (animatedRotationY <= 90f || animatedRotationY >= 270f) { // Show front when mostly front-facing
+            // Subtle gradient overlay
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                if (isDark) Color.Black.copy(alpha = 0.1f) else Color.White.copy(alpha = 0.3f)
+                            ),
+                            radius = 800f
+                        )
+                    )
+            )
+
+            // Card content
+            if (animatedRotationY <= 90f || animatedRotationY >= 270f) {
+                // Front side
                 Text(
                     text = frontText,
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MaterialTheme.typography.headlineMedium.copy(
+                        fontWeight = FontWeight.Bold
+                    ),
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier
-                        .padding(16.dp)
+                        .padding(24.dp)
                         .graphicsLayer { rotationY = 0f }
-                        .testTag("CardFrontText") // Added testTag
+                        .testTag("CardFrontText")
                 )
-            } else { // Show back when mostly back-facing
+            } else {
+                // Back side
                 Text(
                     text = backText,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier
-                        .padding(16.dp)
-                        .graphicsLayer { this.rotationY = 180f }
-                        .testTag("CardBackText") // Added testTag
+                        .padding(24.dp)
+                        .graphicsLayer { rotationY = 180f }
+                        .testTag("CardBackText")
                 )
             }
         }
     }
 }
 
+// Preview functions remain the same but with enhanced visual appeal
 @Preview(showBackground = true, name = "Flashcard Screen - Light")
 @Composable
 fun FlashcardScreenPreview() {
-    // For previews, we need to provide Application and a Repository.
     val applicationContext = LocalContext.current.applicationContext as AnkiZeroApplication
     val repository = applicationContext.repository
 
@@ -281,7 +461,6 @@ fun FlashcardScreenPreview() {
         FlashcardScreen(
             application = applicationContext,
             repository = repository
-            // viewModel is created inside FlashcardScreen using the factory
         )
     }
 }
@@ -296,48 +475,19 @@ fun FlashcardScreenDarkPreview() {
         FlashcardScreen(
             application = applicationContext,
             repository = repository
-            // viewModel is created inside FlashcardScreen using the factory
         )
     }
 }
 
-@Preview(showBackground = true, name = "Flashcard Screen - Empty State")
+@Preview(showBackground = true, name = "Enhanced Flashcard View")
 @Composable
-fun FlashcardScreenEmptyPreview() {
-    val applicationContext = LocalContext.current.applicationContext as AnkiZeroApplication
-    val repository = applicationContext.repository // Use a real or fake empty repository for previews
-    // To truly test the empty state, the ViewModel created within FlashcardScreen
-    // should reflect an empty state when given this repository.
-
-    MaterialTheme {
-        FlashcardScreen(
-            application = applicationContext,
-            repository = repository
-            // viewModel is created inside FlashcardScreen using the factory
-        )
-        // If the above doesn't show the empty state correctly due to ViewModel complexities
-        // with preview data, then the direct Text approach might be a fallback for visual check:
-        // Box(
-        // modifier = Modifier.fillMaxSize(),
-        // contentAlignment = Alignment.Center
-        // ) {
-        // Text("No cards due for review.")
-        // }
-    }
-}
-
-@Preview(showBackground = true, name = "Flipped Flashcard View - Light")
-@Composable
-fun FlippedFlashcardViewPreview() {
+fun EnhancedFlashcardViewPreview() {
     MaterialTheme {
         FlashcardView(
-            frontText = "Bonjour (Preview)",
-            backText = "Hello (Preview)",
+            frontText = "Bonjour",
+            backText = "Hello",
             onSwipeLeft = { },
             onSwipeRight = { }
         )
-        // To show it flipped, we'd need to manipulate the internal 'flipped' state,
-        // which is tricky for a @Preview of a composable with internal remember {}.
-        // A common way is to pass 'initialFlipped: Boolean = false' to FlashcardView for preview purposes.
     }
 }
