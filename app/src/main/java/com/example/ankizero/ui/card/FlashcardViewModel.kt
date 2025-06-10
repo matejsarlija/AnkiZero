@@ -29,9 +29,10 @@ data class FlashcardUiState(
     val progressText: String = "",
     val isDeckEmpty: Boolean = false, // True if no cards for the current mode, or no cards at all
     val showFlipHint: Boolean = true, // To control initial flip hint visibility
-    val dueCardsList: List<Flashcard> = emptyList(), // Added
-    val currentCardIndex: Int = 0, // Added
-    val reviewMode: ReviewMode = ReviewMode.NONE // Added review mode
+    val dueCardsList: List<Flashcard> = emptyList(),
+    val currentCardIndex: Int = 0,
+    val reviewMode: ReviewMode = ReviewMode.NONE,
+    val reviewJustCompleted: Boolean = false // New field
 )
 
 // Changed to AndroidViewModel to get Application context
@@ -79,7 +80,8 @@ class FlashcardViewModel(
                             isDeckEmpty = true,
                             reviewMode = ReviewMode.NONE,
                             dueCardsList = emptyList(), // Clear due cards list
-                            currentCardIndex = 0 // Reset index
+                            currentCardIndex = 0, // Reset index
+                            reviewJustCompleted = false
                         )
                     }
                 } else {
@@ -115,7 +117,8 @@ class FlashcardViewModel(
                             progressText = if (shuffledCards.isEmpty()) "No cards due!" else "Card ${newIndex + 1}/${shuffledCards.size}",
                             isDeckEmpty = shuffledCards.isEmpty(),
                             reviewMode = newReviewMode,
-                            showFlipHint = (currentState.currentCard?.id != shuffledCards.getOrNull(newIndex)?.id && shuffledCards.isNotEmpty()) || (shuffledCards.isNotEmpty() && newIndex == 0 && cardsReviewedThisSession == 0 && newReviewMode != ReviewMode.NONE)
+                            showFlipHint = (currentState.currentCard?.id != shuffledCards.getOrNull(newIndex)?.id && shuffledCards.isNotEmpty()) || (shuffledCards.isNotEmpty() && newIndex == 0 && cardsReviewedThisSession == 0 && newReviewMode != ReviewMode.NONE),
+                            reviewJustCompleted = false
                         )
                     }
                 }
@@ -137,7 +140,8 @@ class FlashcardViewModel(
                         isDeckEmpty = true,
                         reviewMode = ReviewMode.NONE,
                         dueCardsList = emptyList(),
-                        currentCardIndex = 0
+                        currentCardIndex = 0,
+                        reviewJustCompleted = false
                     )
                 }
             } else {
@@ -152,7 +156,8 @@ class FlashcardViewModel(
                         progressText = if (cards.isEmpty()) "No cards in deck." else "Card 1/${cards.size}",
                         isDeckEmpty = cards.isEmpty(),
                         reviewMode = ReviewMode.MANUAL,
-                        showFlipHint = cards.isNotEmpty() // Show hint if manual review starts with cards
+                        showFlipHint = cards.isNotEmpty(), // Show hint if manual review starts with cards
+                        reviewJustCompleted = false
                     )
                 }
             }
@@ -163,61 +168,60 @@ class FlashcardViewModel(
     // updateUiWithCurrentCard is removed as its logic is in init's collectLatest
 
     fun processCardRating(isMemorized: Boolean) {
-        val cardToProcess = _uiState.value.currentCard ?: return // Get card from current state
+        val uiStateAtCallTime = _uiState.value // Capture state when function is called
+        val cardToProcess = uiStateAtCallTime.currentCard ?: return
 
         viewModelScope.launch {
             repository.processReview(cardToProcess, isMemorized)
             AnalyticsHelper.logCardReviewed(getApplication(), cardToProcess.id, isMemorized)
             cardsReviewedThisSession++
 
-            // Optimistically update the UI by removing the card and advancing
-            _uiState.update { currentState ->
-                // It's crucial to use currentState.dueCardsList here, NOT _uiState.value.dueCardsList
-                // to avoid race conditions if the state was updated by another coroutine/flow
-                // between reading cardToProcess and this update block.
-                val listWithoutProcessedCard = currentState.dueCardsList.filterNot { it.id == cardToProcess.id }
+            _uiState.update { currentStateOnUpdate -> // Current state at the moment of update
+                val listRelatedToProcessedCard = uiStateAtCallTime.dueCardsList
+                val listWithoutProcessedCard = listRelatedToProcessedCard.filterNot { it.id == cardToProcess.id }
 
                 if (listWithoutProcessedCard.isEmpty()) {
                     // This was the last card
-                    if (cardsReviewedThisSession > 0) { // Check if any card was reviewed to log session
+                    if (cardsReviewedThisSession > 0) {
                         val sessionDurationSeconds = (System.currentTimeMillis() - sessionStartTime) / 1000
                         AnalyticsHelper.logReviewSessionCompleted(getApplication(), cardsReviewedThisSession, sessionDurationSeconds)
-                        // Reset session counters now that the session is complete.
-                        // cardsReviewedThisSession = 0 // This will be reset if a new list loads via collectLatest
-                        // sessionStartTime = System.currentTimeMillis() // Same as above
+                        // Session counters (cardsReviewedThisSession, sessionStartTime)
+                        // will be reset when a new review session effectively starts (e.g., in init or startManualReview).
                     }
-                    currentState.copy(
+                    currentStateOnUpdate.copy(
                         currentCard = null,
                         dueCardsList = emptyList(),
                         currentCardIndex = 0,
-                        progressText = "Review complete!",
+                        progressText = "Review complete!", // This text can be used by FlashcardScreen
                         isDeckEmpty = true,
+                        reviewMode = ReviewMode.NONE, // Explicitly set to NONE
+                        reviewJustCompleted = true,   // Set the new flag
                         showFlipHint = false
                     )
                 } else {
-                    // Determine the new index.
-                    // If currentCardIndex from `currentState` was pointing to a position within the bounds of the new shorter list,
-                    // it means the items before it were kept, and the item at that index is the correct next card.
-                    // If currentCardIndex is now out of bounds (e.g., it was the last item that was removed),
-                    // or if it pointed past the end of the new list size, wrap to 0.
-                    val newIndex = if (currentState.currentCardIndex < listWithoutProcessedCard.size) {
-                        currentState.currentCardIndex
+                    // There are more cards.
+                    // Calculate newIndex based on uiStateAtCallTime.currentCardIndex relative to listWithoutProcessedCard.
+                    // If the card at uiStateAtCallTime.currentCardIndex was the one removed,
+                    // then the card now at that same index in listWithoutProcessedCard is the "next" one.
+                    // If uiStateAtCallTime.currentCardIndex is beyond the new list's bounds (e.g., last item removed), wrap to 0.
+                    val newIndex = if (uiStateAtCallTime.currentCardIndex < listWithoutProcessedCard.size) {
+                        uiStateAtCallTime.currentCardIndex
                     } else {
-                        0 // Loop to the beginning if the end was reached or index is out of bounds
+                        0
                     }
-                    currentState.copy(
+
+                    currentStateOnUpdate.copy(
                         dueCardsList = listWithoutProcessedCard,
                         currentCard = listWithoutProcessedCard.getOrNull(newIndex),
                         currentCardIndex = newIndex,
+                        isDeckEmpty = false, // Explicitly set to false
+                        reviewMode = uiStateAtCallTime.reviewMode, // Preserve current review mode (NORMAL/MANUAL)
+                        reviewJustCompleted = false, // Ensure this is false
                         progressText = "Card ${newIndex + 1}/${listWithoutProcessedCard.size}",
-                        showFlipHint = true // Show hint for the new card
+                        showFlipHint = true
                     )
                 }
             }
-            // The collectLatest in init will eventually get an update from repository.getDueCards().
-            // This new list should ideally match `listWithoutProcessedCard` or be a superset if new cards became due.
-            // If there's a discrepancy (e.g., another card became due simultaneously),
-            // collectLatest will handle it and become the source of truth for dueCardsList.
         }
     }
 

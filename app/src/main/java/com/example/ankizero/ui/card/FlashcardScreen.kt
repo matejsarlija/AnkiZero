@@ -110,6 +110,24 @@ fun FlashcardScreen(
             .background(backgroundGradient)
     ) {
         when {
+            uiState.reviewJustCompleted && uiState.isDeckEmpty -> {
+                // Display a dedicated "Review complete! No more cards are due." message.
+                // This state should persist until the user takes another action.
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = uiState.progressText, // Use the progressText from ViewModel
+                        style = MaterialTheme.typography.headlineSmall,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                    // Optional: Add a button here to explicitly go back to the main deck view (triggering StackedCardsAnimation)
+                    // e.g., Button(onClick = { viewModel.acknowledgeReviewCompletion() }) { Text("OK") }
+                    // where acknowledgeReviewCompletion would set reviewJustCompleted = false.
+                }
+            }
             currentCard != null -> {
                 Column(
                     modifier = Modifier
@@ -139,6 +157,7 @@ fun FlashcardScreen(
                 }
             }
             reviewMode == ReviewMode.NONE && uiState.isDeckEmpty -> {
+                // Show StackedCardsAnimation (this will now only happen if review wasn't "just completed")
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -162,10 +181,10 @@ fun FlashcardScreen(
                     )
                 }
             }
-            uiState.isDeckEmpty -> {
+            uiState.isDeckEmpty -> { // Generic empty state
                 Box(
                     modifier = Modifier.fillMaxSize().padding(16.dp),
-                    contentAlignment = Alignment.Center
+                    contentAlignment = Alignment.center
                 ) {
                     Text(
                         "No cards available for review in the current mode.",
