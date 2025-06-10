@@ -1,5 +1,6 @@
 package com.example.ankizero.ui.card
 
+import androidx.compose.animation.core.AnimationSpec // Add this import
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -46,7 +47,7 @@ fun StackedCardsAnimation(
         hasAppeared = true
     }
 
-    val springSpec = spring(
+    val springSpec: AnimationSpec<Float> = spring( // Explicitly typed
         dampingRatio = Spring.DampingRatioMediumBouncy,
         stiffness = Spring.StiffnessMedium // Changed from StiffnessLow
     )
@@ -114,7 +115,7 @@ fun StackedCardsAnimation(
         ) {
             Box(
                 modifier = Modifier
-                    .matchParentSize()
+                    .fillMaxSize() // CHANGED FROM matchParentSize()
                     .background(
                         brush = Brush.linearGradient(
                             colors = listOf(
@@ -145,7 +146,7 @@ fun StackedCardsAnimation(
         ) {
             Box(
                 modifier = Modifier
-                    .matchParentSize()
+                    .fillMaxSize() // CHANGED FROM matchParentSize()
                     .background(
                         brush = Brush.linearGradient(
                             colors = listOf(
@@ -176,7 +177,7 @@ fun StackedCardsAnimation(
         ) {
             Box(
                 modifier = Modifier
-                    .matchParentSize()
+                    .fillMaxSize() // CHANGED FROM matchParentSize()
                     .background(
                         brush = Brush.linearGradient(
                             colors = listOf(
