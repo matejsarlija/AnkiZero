@@ -29,9 +29,10 @@ data class FlashcardUiState(
     val progressText: String = "",
     val isDeckEmpty: Boolean = false, // True if no cards for the current mode, or no cards at all
     val showFlipHint: Boolean = true, // To control initial flip hint visibility
-    val dueCardsList: List<Flashcard> = emptyList(), // Added
-    val currentCardIndex: Int = 0, // Added
-    val reviewMode: ReviewMode = ReviewMode.NONE // Added review mode
+    val dueCardsList: List<Flashcard> = emptyList(),
+    val currentCardIndex: Int = 0,
+    val reviewMode: ReviewMode = ReviewMode.NONE,
+    val reviewJustCompleted: Boolean = false // New field
 )
 
 // Changed to AndroidViewModel to get Application context
@@ -79,7 +80,8 @@ class FlashcardViewModel(
                             isDeckEmpty = true,
                             reviewMode = ReviewMode.NONE,
                             dueCardsList = emptyList(), // Clear due cards list
-                            currentCardIndex = 0 // Reset index
+                            currentCardIndex = 0, // Reset index
+                            reviewJustCompleted = false
                         )
                     }
                 } else {
@@ -115,7 +117,8 @@ class FlashcardViewModel(
                             progressText = if (shuffledCards.isEmpty()) "No cards due!" else "Card ${newIndex + 1}/${shuffledCards.size}",
                             isDeckEmpty = shuffledCards.isEmpty(),
                             reviewMode = newReviewMode,
-                            showFlipHint = (currentState.currentCard?.id != shuffledCards.getOrNull(newIndex)?.id && shuffledCards.isNotEmpty()) || (shuffledCards.isNotEmpty() && newIndex == 0 && cardsReviewedThisSession == 0 && newReviewMode != ReviewMode.NONE)
+                            showFlipHint = (currentState.currentCard?.id != shuffledCards.getOrNull(newIndex)?.id && shuffledCards.isNotEmpty()) || (shuffledCards.isNotEmpty() && newIndex == 0 && cardsReviewedThisSession == 0 && newReviewMode != ReviewMode.NONE),
+                            reviewJustCompleted = false
                         )
                     }
                 }
@@ -137,7 +140,8 @@ class FlashcardViewModel(
                         isDeckEmpty = true,
                         reviewMode = ReviewMode.NONE,
                         dueCardsList = emptyList(),
-                        currentCardIndex = 0
+                        currentCardIndex = 0,
+                        reviewJustCompleted = false
                     )
                 }
             } else {
@@ -152,7 +156,8 @@ class FlashcardViewModel(
                         progressText = if (cards.isEmpty()) "No cards in deck." else "Card 1/${cards.size}",
                         isDeckEmpty = cards.isEmpty(),
                         reviewMode = ReviewMode.MANUAL,
-                        showFlipHint = cards.isNotEmpty() // Show hint if manual review starts with cards
+                        showFlipHint = cards.isNotEmpty(), // Show hint if manual review starts with cards
+                        reviewJustCompleted = false
                     )
                 }
             }
@@ -163,69 +168,58 @@ class FlashcardViewModel(
     // updateUiWithCurrentCard is removed as its logic is in init's collectLatest
 
     fun processCardRating(isMemorized: Boolean) {
-        // It's important to capture the uiState value at the beginning of the function,
-        // especially if it's used for decisions like checking list size before an async call.
-        val currentUiStateValue = _uiState.value
-        val cardToProcess = currentUiStateValue.currentCard ?: return
+        val uiStateAtCallTime = _uiState.value // Capture state when function is called
+        val cardToProcess = uiStateAtCallTime.currentCard ?: return
 
         viewModelScope.launch {
-            // Store the ID of the card being processed and the size of the list before processing
-            val processedCardId = cardToProcess.id
-            val listSizeBeforeReview = currentUiStateValue.dueCardsList.size
-
-            repository.processReview(cardToProcess, isMemorized) // This updates the card in DB
+            repository.processReview(cardToProcess, isMemorized)
             AnalyticsHelper.logCardReviewed(getApplication(), cardToProcess.id, isMemorized)
             cardsReviewedThisSession++
 
-            // The .collectLatest in init will automatically pick up the change.
-            // We need to check if the deck became empty *as a result of this specific review*.
-            // The flow will emit a new list. We check if the new list is empty AND
-            // the card just reviewed was the last one.
-            // This logic relies on the fact that collectLatest will update the uiState,
-            // so we check the state *after* the repository call might have triggered an update.
-            // However, repository.processReview is suspend and Flow emission is concurrent.
-            // A robust way is to check conditions that would lead to an empty list.
-            if (listSizeBeforeReview == 1 && currentUiStateValue.dueCardsList.any { it.id == processedCardId }) {
-                // Check against the current state of dueCardsList which should have been updated by the flow
-                // This check might be tricky due to timing of flow emission.
-                // A simpler and more direct check: if the card processed was the last one.
-                // The flow will update the list to empty if this was the last card.
-                // The check for session completion can be done when the flow emits an empty list.
+            _uiState.update { currentStateOnUpdate -> // Current state at the moment of update
+                val listRelatedToProcessedCard = uiStateAtCallTime.dueCardsList
+                val listWithoutProcessedCard = listRelatedToProcessedCard.filterNot { it.id == cardToProcess.id }
 
-                // The problem description asks: "Logging for AnalyticsHelper.logReviewSessionCompleted should happen
-                // when the dueCardsList becomes empty *as a result of a review*."
-                // This can be checked by seeing if the dueCardsList had one item before processReview and
-                // that item was the one being processed.
+                if (listWithoutProcessedCard.isEmpty()) {
+                    // This was the last card
+                    if (cardsReviewedThisSession > 0) {
+                        val sessionDurationSeconds = (System.currentTimeMillis() - sessionStartTime) / 1000
+                        AnalyticsHelper.logReviewSessionCompleted(getApplication(), cardsReviewedThisSession, sessionDurationSeconds)
+                        // Session counters (cardsReviewedThisSession, sessionStartTime)
+                        // will be reset when a new review session effectively starts (e.g., in init or startManualReview).
+                    }
+                    currentStateOnUpdate.copy(
+                        currentCard = null,
+                        dueCardsList = emptyList(),
+                        currentCardIndex = 0,
+                        progressText = "Review complete!", // This text can be used by FlashcardScreen
+                        isDeckEmpty = true,
+                        reviewMode = ReviewMode.NONE, // Explicitly set to NONE
+                        reviewJustCompleted = true,   // Set the new flag
+                        showFlipHint = false
+                    )
+                } else {
+                    // There are more cards.
+                    // Calculate newIndex based on uiStateAtCallTime.currentCardIndex relative to listWithoutProcessedCard.
+                    // If the card at uiStateAtCallTime.currentCardIndex was the one removed,
+                    // then the card now at that same index in listWithoutProcessedCard is the "next" one.
+                    // If uiStateAtCallTime.currentCardIndex is beyond the new list's bounds (e.g., last item removed), wrap to 0.
+                    val newIndex = if (uiStateAtCallTime.currentCardIndex < listWithoutProcessedCard.size) {
+                        uiStateAtCallTime.currentCardIndex
+                    } else {
+                        0
+                    }
 
-                // The logic for session completion logging will now be implicitly handled by the collectLatest block
-                // when it observes that the dueCardsList has become empty.
-                // We can refine the condition in collectLatest or here.
-                // Let's refine it in collectLatest by checking if isDeckEmpty turned true.
-                // For now, we'll rely on the flow updating the list.
-                // The condition `_uiState.value.isDeckEmpty` after the flow updates would be the source of truth.
-                // The if condition `_uiState.value.dueCardsList.isEmpty() && cardsReviewedThisSession > 0`
-                // in the old `updateUiWithCurrentCard` was responsible for this.
-                // We need to replicate that, ensuring it's tied to a review action.
-
-                // The most reliable place to log session completion is when the flow emits an empty list
-                // AND cardsReviewedThisSession > 0.
-                // The `collectLatest` block updates `isDeckEmpty`. We can observe `_uiState.value`
-                // after `repository.processReview` completes and the flow has had a chance to update.
-                // However, that's still a race.
-                // The original instruction: "if the dueCardsList had one item before processReview and that item was the one being processed"
-
-                // Let's stick to the provided logic:
-                if (currentUiStateValue.dueCardsList.size == 1 && currentUiStateValue.dueCardsList.first().id == cardToProcess.id) {
-                    // This check is against the state *before* the flow has a chance to emit the new empty list.
-                    // After repository.processReview, the flow will emit, and collectLatest will update isDeckEmpty.
-                    // The log should happen *after* the list becomes empty.
-                    // We can check _uiState.value.isDeckEmpty after this block, but that's not robust.
-                    // Let's assume the flow updates promptly. The log will be based on the *next* state.
-                    // The prompt implies we should log based on the action leading to emptiness.
-                    val sessionDurationSeconds = (System.currentTimeMillis() - sessionStartTime) / 1000
-                    AnalyticsHelper.logReviewSessionCompleted(getApplication(), cardsReviewedThisSession, sessionDurationSeconds)
-                    // cardsReviewedThisSession = 0; // Will be reset by collectLatest if new cards arrive or list is reloaded
-                    // sessionStartTime = System.currentTimeMillis(); // Same as above
+                    currentStateOnUpdate.copy(
+                        dueCardsList = listWithoutProcessedCard,
+                        currentCard = listWithoutProcessedCard.getOrNull(newIndex),
+                        currentCardIndex = newIndex,
+                        isDeckEmpty = false, // Explicitly set to false
+                        reviewMode = uiStateAtCallTime.reviewMode, // Preserve current review mode (NORMAL/MANUAL)
+                        reviewJustCompleted = false, // Ensure this is false
+                        progressText = "Card ${newIndex + 1}/${listWithoutProcessedCard.size}",
+                        showFlipHint = true
+                    )
                 }
             }
         }
