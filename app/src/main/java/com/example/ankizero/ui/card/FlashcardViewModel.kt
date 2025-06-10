@@ -163,71 +163,61 @@ class FlashcardViewModel(
     // updateUiWithCurrentCard is removed as its logic is in init's collectLatest
 
     fun processCardRating(isMemorized: Boolean) {
-        // It's important to capture the uiState value at the beginning of the function,
-        // especially if it's used for decisions like checking list size before an async call.
-        val currentUiStateValue = _uiState.value
-        val cardToProcess = currentUiStateValue.currentCard ?: return
+        val cardToProcess = _uiState.value.currentCard ?: return // Get card from current state
 
         viewModelScope.launch {
-            // Store the ID of the card being processed and the size of the list before processing
-            val processedCardId = cardToProcess.id
-            val listSizeBeforeReview = currentUiStateValue.dueCardsList.size
-
-            repository.processReview(cardToProcess, isMemorized) // This updates the card in DB
+            repository.processReview(cardToProcess, isMemorized)
             AnalyticsHelper.logCardReviewed(getApplication(), cardToProcess.id, isMemorized)
             cardsReviewedThisSession++
 
-            // The .collectLatest in init will automatically pick up the change.
-            // We need to check if the deck became empty *as a result of this specific review*.
-            // The flow will emit a new list. We check if the new list is empty AND
-            // the card just reviewed was the last one.
-            // This logic relies on the fact that collectLatest will update the uiState,
-            // so we check the state *after* the repository call might have triggered an update.
-            // However, repository.processReview is suspend and Flow emission is concurrent.
-            // A robust way is to check conditions that would lead to an empty list.
-            if (listSizeBeforeReview == 1 && currentUiStateValue.dueCardsList.any { it.id == processedCardId }) {
-                // Check against the current state of dueCardsList which should have been updated by the flow
-                // This check might be tricky due to timing of flow emission.
-                // A simpler and more direct check: if the card processed was the last one.
-                // The flow will update the list to empty if this was the last card.
-                // The check for session completion can be done when the flow emits an empty list.
+            // Optimistically update the UI by removing the card and advancing
+            _uiState.update { currentState ->
+                // It's crucial to use currentState.dueCardsList here, NOT _uiState.value.dueCardsList
+                // to avoid race conditions if the state was updated by another coroutine/flow
+                // between reading cardToProcess and this update block.
+                val listWithoutProcessedCard = currentState.dueCardsList.filterNot { it.id == cardToProcess.id }
 
-                // The problem description asks: "Logging for AnalyticsHelper.logReviewSessionCompleted should happen
-                // when the dueCardsList becomes empty *as a result of a review*."
-                // This can be checked by seeing if the dueCardsList had one item before processReview and
-                // that item was the one being processed.
-
-                // The logic for session completion logging will now be implicitly handled by the collectLatest block
-                // when it observes that the dueCardsList has become empty.
-                // We can refine the condition in collectLatest or here.
-                // Let's refine it in collectLatest by checking if isDeckEmpty turned true.
-                // For now, we'll rely on the flow updating the list.
-                // The condition `_uiState.value.isDeckEmpty` after the flow updates would be the source of truth.
-                // The if condition `_uiState.value.dueCardsList.isEmpty() && cardsReviewedThisSession > 0`
-                // in the old `updateUiWithCurrentCard` was responsible for this.
-                // We need to replicate that, ensuring it's tied to a review action.
-
-                // The most reliable place to log session completion is when the flow emits an empty list
-                // AND cardsReviewedThisSession > 0.
-                // The `collectLatest` block updates `isDeckEmpty`. We can observe `_uiState.value`
-                // after `repository.processReview` completes and the flow has had a chance to update.
-                // However, that's still a race.
-                // The original instruction: "if the dueCardsList had one item before processReview and that item was the one being processed"
-
-                // Let's stick to the provided logic:
-                if (currentUiStateValue.dueCardsList.size == 1 && currentUiStateValue.dueCardsList.first().id == cardToProcess.id) {
-                    // This check is against the state *before* the flow has a chance to emit the new empty list.
-                    // After repository.processReview, the flow will emit, and collectLatest will update isDeckEmpty.
-                    // The log should happen *after* the list becomes empty.
-                    // We can check _uiState.value.isDeckEmpty after this block, but that's not robust.
-                    // Let's assume the flow updates promptly. The log will be based on the *next* state.
-                    // The prompt implies we should log based on the action leading to emptiness.
-                    val sessionDurationSeconds = (System.currentTimeMillis() - sessionStartTime) / 1000
-                    AnalyticsHelper.logReviewSessionCompleted(getApplication(), cardsReviewedThisSession, sessionDurationSeconds)
-                    // cardsReviewedThisSession = 0; // Will be reset by collectLatest if new cards arrive or list is reloaded
-                    // sessionStartTime = System.currentTimeMillis(); // Same as above
+                if (listWithoutProcessedCard.isEmpty()) {
+                    // This was the last card
+                    if (cardsReviewedThisSession > 0) { // Check if any card was reviewed to log session
+                        val sessionDurationSeconds = (System.currentTimeMillis() - sessionStartTime) / 1000
+                        AnalyticsHelper.logReviewSessionCompleted(getApplication(), cardsReviewedThisSession, sessionDurationSeconds)
+                        // Reset session counters now that the session is complete.
+                        // cardsReviewedThisSession = 0 // This will be reset if a new list loads via collectLatest
+                        // sessionStartTime = System.currentTimeMillis() // Same as above
+                    }
+                    currentState.copy(
+                        currentCard = null,
+                        dueCardsList = emptyList(),
+                        currentCardIndex = 0,
+                        progressText = "Review complete!",
+                        isDeckEmpty = true,
+                        showFlipHint = false
+                    )
+                } else {
+                    // Determine the new index.
+                    // If currentCardIndex from `currentState` was pointing to a position within the bounds of the new shorter list,
+                    // it means the items before it were kept, and the item at that index is the correct next card.
+                    // If currentCardIndex is now out of bounds (e.g., it was the last item that was removed),
+                    // or if it pointed past the end of the new list size, wrap to 0.
+                    val newIndex = if (currentState.currentCardIndex < listWithoutProcessedCard.size) {
+                        currentState.currentCardIndex
+                    } else {
+                        0 // Loop to the beginning if the end was reached or index is out of bounds
+                    }
+                    currentState.copy(
+                        dueCardsList = listWithoutProcessedCard,
+                        currentCard = listWithoutProcessedCard.getOrNull(newIndex),
+                        currentCardIndex = newIndex,
+                        progressText = "Card ${newIndex + 1}/${listWithoutProcessedCard.size}",
+                        showFlipHint = true // Show hint for the new card
+                    )
                 }
             }
+            // The collectLatest in init will eventually get an update from repository.getDueCards().
+            // This new list should ideally match `listWithoutProcessedCard` or be a superset if new cards became due.
+            // If there's a discrepancy (e.g., another card became due simultaneously),
+            // collectLatest will handle it and become the source of truth for dueCardsList.
         }
     }
 
