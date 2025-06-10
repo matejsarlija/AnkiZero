@@ -57,27 +57,89 @@ fun StackedCardsAnimation(
         stiffness = Spring.StiffnessMediumLow // Changed for softer animation
     )
 
-    // Refined Initial State (isRevealed = false) for a neater stack
-    // Animation for Bottom Card (Card 1) - Unraveling: moves down and fades
-    val bottomCardRotationZ by animateFloatAsState(targetValue = if (isRevealed) 2f else 0f, animationSpec = springSpec, label = "bottomCardRotationZ")
-    val bottomCardTranslationX by animateFloatAsState(targetValue = if (isRevealed) 10f else 0f, animationSpec = springSpec, label = "bottomCardTranslationX")
-    val bottomCardTranslationY by animateFloatAsState(targetValue = if (isRevealed) 150f else 20f, animationSpec = springSpec, label = "bottomCardTranslationY")
-    val bottomCardScale by animateFloatAsState(targetValue = if (isRevealed) 0.9f else 1f, animationSpec = springSpec, label = "bottomCardScale")
-    val bottomCardAlpha by animateFloatAsState(targetValue = if (isRevealed) 0f else 1f, animationSpec = springSpec, label = "bottomCardAlpha")
+    val tiltAngle = -15f
+    val horizontalOffsetUnit = 30f
 
-    // Animation for Middle Card (Card 2) - Unraveling: moves down (less than bottom) and fades
-    val middleCardRotationZ by animateFloatAsState(targetValue = if (isRevealed) -2f else 0f, animationSpec = springSpec, label = "middleCardRotationZ") // Initial rotation 0f
-    val middleCardTranslationX by animateFloatAsState(targetValue = if (isRevealed) -5f else 0f, animationSpec = springSpec, label = "middleCardTranslationX") // Initial X 0f
-    val middleCardTranslationY by animateFloatAsState(targetValue = if (isRevealed) 75f else 10f, animationSpec = springSpec, label = "middleCardTranslationY") // Initial Y 10f
-    val middleCardScale by animateFloatAsState(targetValue = if (isRevealed) 0.95f else 1f, animationSpec = springSpec, label = "middleCardScale")
-    val middleCardAlpha by animateFloatAsState(targetValue = if (isRevealed) 0f else 1f, animationSpec = springSpec, label = "middleCardAlpha")
+    // Animation for Bottom Card (Card 1) - zIndex 1f
+    val bottomCardRotationZ by animateFloatAsState(
+        targetValue = if (isRevealed) tiltAngle + 10f else tiltAngle,
+        animationSpec = springSpec,
+        label = "bottomCardRotationZ"
+    )
+    val bottomCardTranslationX by animateFloatAsState(
+        targetValue = if (isRevealed) horizontalOffsetUnit * 4f else horizontalOffsetUnit * 2f,
+        animationSpec = springSpec,
+        label = "bottomCardTranslationX"
+    )
+    val bottomCardTranslationY by animateFloatAsState(
+        targetValue = if (isRevealed) 100f else 10f, // Was 150f revealed, 20f initial
+        animationSpec = springSpec,
+        label = "bottomCardTranslationY"
+    )
+    val bottomCardScale by animateFloatAsState(
+        targetValue = if (isRevealed) 0.7f else 0.9f, // Was 0.9f revealed, 1f initial
+        animationSpec = springSpec,
+        label = "bottomCardScale"
+    )
+    val bottomCardAlpha by animateFloatAsState(
+        targetValue = if (isRevealed) 0f else 0.85f, // Was 0f revealed, 1f initial
+        animationSpec = springSpec,
+        label = "bottomCardAlpha"
+    )
 
-    // Animation for Top Card (Card 3 - becomes the main card) - Unraveling: lifts slightly and scales up
-    val topCardRotationZ by animateFloatAsState(targetValue = if (isRevealed) 0f else 0f, animationSpec = springSpec, label = "topCardRotationZ") // Initial rotation 0f
-    val topCardTranslationX by animateFloatAsState(targetValue = if (isRevealed) 0f else 0f, animationSpec = springSpec, label = "topCardTranslationX") // Initial X 0f
-    val topCardTranslationY by animateFloatAsState(targetValue = if (isRevealed) -10f else 0f, animationSpec = springSpec, label = "topCardTranslationY") // Initial Y 0f
-    val topCardScale by animateFloatAsState(targetValue = if (isRevealed) 1.05f else 1f, animationSpec = springSpec, label = "topCardScale")
-    val topCardAlpha by animateFloatAsState(targetValue = if (isRevealed) 1f else 1f, animationSpec = springSpec, label = "topCardAlpha")
+    // Animation for Middle Card (Card 2) - zIndex 2f
+    val middleCardRotationZ by animateFloatAsState(
+        targetValue = if (isRevealed) tiltAngle - 10f else tiltAngle,
+        animationSpec = springSpec,
+        label = "middleCardRotationZ"
+    )
+    val middleCardTranslationX by animateFloatAsState(
+        targetValue = if (isRevealed) horizontalOffsetUnit * 3f else horizontalOffsetUnit * 1f,
+        animationSpec = springSpec,
+        label = "middleCardTranslationX"
+    )
+    val middleCardTranslationY by animateFloatAsState(
+        targetValue = if (isRevealed) 50f else 5f, // Was 75f revealed, 10f initial
+        animationSpec = springSpec,
+        label = "middleCardTranslationY"
+    )
+    val middleCardScale by animateFloatAsState(
+        targetValue = if (isRevealed) 0.8f else 0.95f, // Was 0.95f revealed, 1f initial
+        animationSpec = springSpec,
+        label = "middleCardScale"
+    )
+    val middleCardAlpha by animateFloatAsState(
+        targetValue = if (isRevealed) 0f else 0.9f, // Was 0f revealed, 1f initial
+        animationSpec = springSpec,
+        label = "middleCardAlpha"
+    )
+
+    // Animation for Top Card (Card 3 - becomes the main card) - zIndex 3f
+    val topCardRotationZ by animateFloatAsState(
+        targetValue = if (isRevealed) 0f else tiltAngle, // Was 0f revealed, 0f initial
+        animationSpec = springSpec,
+        label = "topCardRotationZ"
+    )
+    val topCardTranslationX by animateFloatAsState(
+        targetValue = if (isRevealed) 0f else 0f,
+        animationSpec = springSpec,
+        label = "topCardTranslationX"
+    )
+    val topCardTranslationY by animateFloatAsState(
+        targetValue = if (isRevealed) -15f else 0f, // Was -10f revealed, 0f initial
+        animationSpec = springSpec,
+        label = "topCardTranslationY"
+    )
+    val topCardScale by animateFloatAsState(
+        targetValue = if (isRevealed) 1.05f else 1f,
+        animationSpec = springSpec,
+        label = "topCardScale"
+    )
+    val topCardAlpha by animateFloatAsState(
+        targetValue = if (isRevealed) 1f else 1f,
+        animationSpec = springSpec,
+        label = "topCardAlpha"
+    )
 
     LaunchedEffect(isRevealed) {
         if (isRevealed) {
