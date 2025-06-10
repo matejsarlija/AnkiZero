@@ -15,9 +15,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLifecycleOwner // Added for Lifecycle
 import androidx.compose.ui.platform.testTag // Added for testTag
+import androidx.compose.foundation.isSystemInDarkTheme // Added for theme checking
 import androidx.compose.material.icons.Icons // Added for Icons
 import androidx.compose.material.icons.filled.Style // Added for Style icon (example for folded cards)
 import com.example.ankizero.ui.card.StackedCardsAnimation // Added import
+import com.example.ankizero.ui.theme.LightGrayNoise // Import for custom color
+import com.example.ankizero.ui.theme.MidGrayNoise // Import for custom color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import android.app.Application
@@ -204,11 +207,13 @@ fun FlashcardView(
     var flipped by remember { mutableStateOf(false) }
     val animatedRotationY by animateFloatAsState(
         targetValue = if (flipped) 180f else 0f,
-        animationSpec = tween(durationMillis = 600), // Slightly longer for smoother feel
+        animationSpec = tween(durationMillis = 1000), // Slightly longer for smoother feel
         label = "rotationY"
     )
 
     var dragOffsetX by remember { mutableFloatStateOf(0f) }
+
+    val cardBackgroundColor = if (isSystemInDarkTheme()) MidGrayNoise else LightGrayNoise
 
     Card(
         modifier = modifier // Use passed modifier
@@ -239,7 +244,8 @@ fun FlashcardView(
                     }
                 )
             },
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = cardBackgroundColor),
         shape = MaterialTheme.shapes.medium // Using Material3 shapes
     ) {
         Box(
