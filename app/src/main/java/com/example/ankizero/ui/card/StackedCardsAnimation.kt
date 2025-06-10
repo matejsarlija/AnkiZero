@@ -22,8 +22,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush // Added for Brush
 import androidx.compose.ui.graphics.graphicsLayer
+import com.example.ankizero.ui.theme.DarkGrayNoise
+import com.example.ankizero.ui.theme.LightGrayNoise
+import com.example.ankizero.ui.theme.MidGrayNoise
+import com.example.ankizero.ui.theme.SubtleDarkerGrayNoise
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.delay
@@ -48,29 +53,30 @@ fun StackedCardsAnimation(
     }
 
     val springSpec: AnimationSpec<Float> = spring( // Explicitly typed
-        dampingRatio = Spring.DampingRatioMediumBouncy,
-        stiffness = Spring.StiffnessMedium // Changed from StiffnessLow
+        dampingRatio = Spring.DampingRatioLowBouncy, // Changed for less bounce
+        stiffness = Spring.StiffnessMediumLow // Changed for softer animation
     )
 
-    // Animation for Bottom Card (Card 1)
-    val bottomCardRotationZ by animateFloatAsState(targetValue = if (isRevealed) 0f else 0f, animationSpec = springSpec, label = "bottomCardRotationZ")
-    val bottomCardTranslationX by animateFloatAsState(targetValue = if (isRevealed) 300f else 0f, animationSpec = springSpec, label = "bottomCardTranslationX")
-    val bottomCardTranslationY by animateFloatAsState(targetValue = if (isRevealed) 0f else 20f, animationSpec = springSpec, label = "bottomCardTranslationY")
-    val bottomCardScale by animateFloatAsState(targetValue = if (isRevealed) 0.8f else 1f, animationSpec = springSpec, label = "bottomCardScale")
+    // Refined Initial State (isRevealed = false) for a neater stack
+    // Animation for Bottom Card (Card 1) - Unraveling: moves down and fades
+    val bottomCardRotationZ by animateFloatAsState(targetValue = if (isRevealed) 2f else 0f, animationSpec = springSpec, label = "bottomCardRotationZ")
+    val bottomCardTranslationX by animateFloatAsState(targetValue = if (isRevealed) 10f else 0f, animationSpec = springSpec, label = "bottomCardTranslationX")
+    val bottomCardTranslationY by animateFloatAsState(targetValue = if (isRevealed) 150f else 20f, animationSpec = springSpec, label = "bottomCardTranslationY")
+    val bottomCardScale by animateFloatAsState(targetValue = if (isRevealed) 0.9f else 1f, animationSpec = springSpec, label = "bottomCardScale")
     val bottomCardAlpha by animateFloatAsState(targetValue = if (isRevealed) 0f else 1f, animationSpec = springSpec, label = "bottomCardAlpha")
 
-    // Animation for Middle Card (Card 2)
-    val middleCardRotationZ by animateFloatAsState(targetValue = if (isRevealed) 0f else -7f, animationSpec = springSpec, label = "middleCardRotationZ")
-    val middleCardTranslationX by animateFloatAsState(targetValue = if (isRevealed) -300f else -15f, animationSpec = springSpec, label = "middleCardTranslationX")
-    val middleCardTranslationY by animateFloatAsState(targetValue = if (isRevealed) 0f else -10f, animationSpec = springSpec, label = "middleCardTranslationY")
-    val middleCardScale by animateFloatAsState(targetValue = if (isRevealed) 0.8f else 1f, animationSpec = springSpec, label = "middleCardScale")
+    // Animation for Middle Card (Card 2) - Unraveling: moves down (less than bottom) and fades
+    val middleCardRotationZ by animateFloatAsState(targetValue = if (isRevealed) -2f else 0f, animationSpec = springSpec, label = "middleCardRotationZ") // Initial rotation 0f
+    val middleCardTranslationX by animateFloatAsState(targetValue = if (isRevealed) -5f else 0f, animationSpec = springSpec, label = "middleCardTranslationX") // Initial X 0f
+    val middleCardTranslationY by animateFloatAsState(targetValue = if (isRevealed) 75f else 10f, animationSpec = springSpec, label = "middleCardTranslationY") // Initial Y 10f
+    val middleCardScale by animateFloatAsState(targetValue = if (isRevealed) 0.95f else 1f, animationSpec = springSpec, label = "middleCardScale")
     val middleCardAlpha by animateFloatAsState(targetValue = if (isRevealed) 0f else 1f, animationSpec = springSpec, label = "middleCardAlpha")
 
-    // Animation for Top Card (Card 3 - becomes the main card)
-    val topCardRotationZ by animateFloatAsState(targetValue = if (isRevealed) 0f else -14f, animationSpec = springSpec, label = "topCardRotationZ")
-    val topCardTranslationX by animateFloatAsState(targetValue = if (isRevealed) 0f else 10f, animationSpec = springSpec, label = "topCardTranslationX")
-    val topCardTranslationY by animateFloatAsState(targetValue = if (isRevealed) 0f else -40f, animationSpec = springSpec, label = "topCardTranslationY")
-    val topCardScale by animateFloatAsState(targetValue = if (isRevealed) 1.1f else 1f, animationSpec = springSpec, label = "topCardScale")
+    // Animation for Top Card (Card 3 - becomes the main card) - Unraveling: lifts slightly and scales up
+    val topCardRotationZ by animateFloatAsState(targetValue = if (isRevealed) 0f else 0f, animationSpec = springSpec, label = "topCardRotationZ") // Initial rotation 0f
+    val topCardTranslationX by animateFloatAsState(targetValue = if (isRevealed) 0f else 0f, animationSpec = springSpec, label = "topCardTranslationX") // Initial X 0f
+    val topCardTranslationY by animateFloatAsState(targetValue = if (isRevealed) -10f else 0f, animationSpec = springSpec, label = "topCardTranslationY") // Initial Y 0f
+    val topCardScale by animateFloatAsState(targetValue = if (isRevealed) 1.05f else 1f, animationSpec = springSpec, label = "topCardScale")
     val topCardAlpha by animateFloatAsState(targetValue = if (isRevealed) 1f else 1f, animationSpec = springSpec, label = "topCardAlpha")
 
     LaunchedEffect(isRevealed) {
@@ -119,9 +125,13 @@ fun StackedCardsAnimation(
                     .background(
                         brush = Brush.linearGradient(
                             colors = listOf(
-                                MaterialTheme.colorScheme.primaryContainer,
-                                MaterialTheme.colorScheme.tertiaryContainer
-                            )
+                                LightGrayNoise,
+                                MidGrayNoise,
+                                DarkGrayNoise,
+                                MidGrayNoise
+                            ),
+                            start = Offset(0f, 0f),
+                            end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
                         )
                     )
             )
@@ -150,9 +160,14 @@ fun StackedCardsAnimation(
                     .background(
                         brush = Brush.linearGradient(
                             colors = listOf(
-                                MaterialTheme.colorScheme.secondaryContainer, // Different gradient for variety
-                                MaterialTheme.colorScheme.primaryContainer
-                            )
+                                MidGrayNoise,
+                                LightGrayNoise,
+                                SubtleDarkerGrayNoise,
+                                MidGrayNoise,
+                                LightGrayNoise
+                            ),
+                            start = Offset(0f, Float.POSITIVE_INFINITY),
+                            end = Offset(Float.POSITIVE_INFINITY, 0f)
                         )
                     )
             )
@@ -181,9 +196,14 @@ fun StackedCardsAnimation(
                     .background(
                         brush = Brush.linearGradient(
                             colors = listOf(
-                                MaterialTheme.colorScheme.tertiaryContainer, // Yet another gradient
-                                MaterialTheme.colorScheme.secondaryContainer
+                                DarkGrayNoise,
+                                MidGrayNoise,
+                                LightGrayNoise,
+                                SubtleDarkerGrayNoise,
+                                DarkGrayNoise,
+                                MidGrayNoise
                             )
+                            // Default horizontal gradient
                         )
                     )
             )

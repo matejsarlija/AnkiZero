@@ -10,7 +10,9 @@ import com.example.ankizero.util.AnalyticsHelper
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlin.random.Random
+
 // Removed: import kotlin.collections.shuffled - this is redundant
+private const val MINIMUM_CARDS_FOR_REVIEW = 2
 // import kotlin.math.max // No longer used
 // import kotlin.math.min // No longer used
 // import kotlin.math.roundToInt // Not used after refactor
@@ -69,11 +71,23 @@ class FlashcardViewModel(
                     sessionStartTime = System.currentTimeMillis()
                 }
 
-                _uiState.update { currentState ->
-                    // Determine reviewMode based on whether cards were found by getDueCards
-                    val newReviewMode = if (shuffledCards.isNotEmpty()) ReviewMode.NORMAL else ReviewMode.NONE
+                if (shuffledCards.size < MINIMUM_CARDS_FOR_REVIEW && shuffledCards.isNotEmpty()) { // Added isNotEmpty check
+                    _uiState.update { currentState ->
+                        currentState.copy(
+                            currentCard = null,
+                            progressText = "Add at least $MINIMUM_CARDS_FOR_REVIEW cards to start a review.",
+                            isDeckEmpty = true,
+                            reviewMode = ReviewMode.NONE,
+                            dueCardsList = emptyList(), // Clear due cards list
+                            currentCardIndex = 0 // Reset index
+                        )
+                    }
+                } else {
+                    _uiState.update { currentState ->
+                        // Determine reviewMode based on whether cards were found by getDueCards
+                        val newReviewMode = if (shuffledCards.isNotEmpty()) ReviewMode.NORMAL else ReviewMode.NONE
 
-                    var newIndex = 0 // Default to 0
+                        var newIndex = 0 // Default to 0
                     val currentCardId = currentState.currentCard?.id
 
                     if (shuffledCards.isNotEmpty()) {
@@ -94,15 +108,16 @@ class FlashcardViewModel(
                         sessionStartTime = System.currentTimeMillis()
                     }
 
-                    currentState.copy(
-                        dueCardsList = shuffledCards,
-                        currentCardIndex = newIndex,
-                        currentCard = shuffledCards.getOrNull(newIndex),
-                        progressText = if (shuffledCards.isEmpty()) "No cards due!" else "Card ${newIndex + 1}/${shuffledCards.size}",
-                        isDeckEmpty = shuffledCards.isEmpty(),
-                        reviewMode = newReviewMode,
-                        showFlipHint = (currentState.currentCard?.id != shuffledCards.getOrNull(newIndex)?.id && shuffledCards.isNotEmpty()) || (shuffledCards.isNotEmpty() && newIndex == 0 && cardsReviewedThisSession == 0 && newReviewMode != ReviewMode.NONE)
-                    )
+                        currentState.copy(
+                            dueCardsList = shuffledCards,
+                            currentCardIndex = newIndex,
+                            currentCard = shuffledCards.getOrNull(newIndex),
+                            progressText = if (shuffledCards.isEmpty()) "No cards due!" else "Card ${newIndex + 1}/${shuffledCards.size}",
+                            isDeckEmpty = shuffledCards.isEmpty(),
+                            reviewMode = newReviewMode,
+                            showFlipHint = (currentState.currentCard?.id != shuffledCards.getOrNull(newIndex)?.id && shuffledCards.isNotEmpty()) || (shuffledCards.isNotEmpty() && newIndex == 0 && cardsReviewedThisSession == 0 && newReviewMode != ReviewMode.NONE)
+                        )
+                    }
                 }
             }
         }
@@ -113,19 +128,33 @@ class FlashcardViewModel(
             // Fixed: Proper null handling and consistent shuffling
             val allCardsList: List<Flashcard>? = repository.getAllCards().firstOrNull()
             val cards = allCardsList?.shuffled() ?: emptyList() // Removed unnecessary Random.Default parameter
-            cardsReviewedThisSession = 0
-            sessionStartTime = System.currentTimeMillis()
 
-            _uiState.update {
-                it.copy(
-                    dueCardsList = cards,
-                    currentCardIndex = 0,
-                    currentCard = cards.getOrNull(0),
-                    progressText = if (cards.isEmpty()) "No cards in deck." else "Card 1/${cards.size}",
-                    isDeckEmpty = cards.isEmpty(),
-                    reviewMode = ReviewMode.MANUAL,
-                    showFlipHint = cards.isNotEmpty() // Show hint if manual review starts with cards
-                )
+            if (cards.size < MINIMUM_CARDS_FOR_REVIEW) {
+                _uiState.update {
+                    it.copy(
+                        currentCard = null,
+                        progressText = "Not enough cards in your deck to start a review. Add at least $MINIMUM_CARDS_FOR_REVIEW cards.",
+                        isDeckEmpty = true,
+                        reviewMode = ReviewMode.NONE,
+                        dueCardsList = emptyList(),
+                        currentCardIndex = 0
+                    )
+                }
+            } else {
+                cardsReviewedThisSession = 0
+                sessionStartTime = System.currentTimeMillis()
+
+                _uiState.update {
+                    it.copy(
+                        dueCardsList = cards,
+                        currentCardIndex = 0,
+                        currentCard = cards.getOrNull(0),
+                        progressText = if (cards.isEmpty()) "No cards in deck." else "Card 1/${cards.size}",
+                        isDeckEmpty = cards.isEmpty(),
+                        reviewMode = ReviewMode.MANUAL,
+                        showFlipHint = cards.isNotEmpty() // Show hint if manual review starts with cards
+                    )
+                }
             }
         }
     }

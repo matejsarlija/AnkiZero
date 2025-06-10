@@ -247,4 +247,116 @@ class FlashcardViewModelTest {
         viewModel.dismissFlipHint()
         assertFalse(viewModel.uiState.value.showFlipHint)
     }
+
+    // Tests for MINIMUM_CARDS_FOR_REVIEW logic
+    // MINIMUM_CARDS_FOR_REVIEW is 2 in ViewModel
+
+    @Test
+    fun `init dueCards less than MINIMUM_CARDS_FOR_REVIEW shows not enough cards`() = runTest(testDispatcher) {
+        val singleCardList = listOf(createTestFlashcard(id = 1))
+        whenever(mockRepository.getDueCards()).thenReturn(flowOf(singleCardList))
+
+        viewModel = FlashcardViewModel(mockApplication, mockRepository)
+        advanceUntilIdle() // Ensure coroutines complete
+
+        val uiState = viewModel.uiState.value
+        assertTrue(uiState.isDeckEmpty, "Deck should be considered empty")
+        assertNull(uiState.currentCard, "Current card should be null")
+        assertEquals("Add at least 2 cards to start a review.", uiState.progressText)
+        assertEquals(ReviewMode.NONE, uiState.reviewMode)
+        assertTrue(uiState.dueCardsList.isEmpty(), "dueCardsList should be empty in UI state")
+    }
+
+    @Test
+    fun `init dueCards with zero cards shows no cards due`() = runTest(testDispatcher) {
+        whenever(mockRepository.getDueCards()).thenReturn(flowOf(emptyList()))
+
+        viewModel = FlashcardViewModel(mockApplication, mockRepository)
+        advanceUntilIdle() // Ensure coroutines complete
+
+        val uiState = viewModel.uiState.value
+        assertTrue(uiState.isDeckEmpty, "Deck should be empty")
+        assertNull(uiState.currentCard, "Current card should be null")
+        assertEquals("No cards due!", uiState.progressText) // Specific message for zero due cards
+        assertEquals(ReviewMode.NONE, uiState.reviewMode)
+        assertTrue(uiState.dueCardsList.isEmpty(), "dueCardsList should be empty")
+    }
+
+    @Test
+    fun `init dueCards with MINIMUM_CARDS_FOR_REVIEW starts review`() = runTest(testDispatcher) {
+        val twoCardsList = listOf(createTestFlashcard(id = 1), createTestFlashcard(id = 2))
+        whenever(mockRepository.getDueCards()).thenReturn(flowOf(twoCardsList))
+
+        viewModel = FlashcardViewModel(mockApplication, mockRepository)
+        advanceUntilIdle()
+
+        val uiState = viewModel.uiState.value
+        assertFalse(uiState.isDeckEmpty, "Deck should not be empty")
+        assertNotNull(uiState.currentCard, "Current card should be loaded")
+        assertEquals("Card 1/${twoCardsList.size}", uiState.progressText)
+        assertEquals(ReviewMode.NORMAL, uiState.reviewMode)
+        assertEquals(twoCardsList.size, uiState.dueCardsList.size)
+    }
+
+    @Test
+    fun `startManualReview less than MINIMUM_CARDS_FOR_REVIEW shows not enough cards`() = runTest(testDispatcher) {
+        val singleCardList = listOf(createTestFlashcard(id = 1))
+        whenever(mockRepository.getAllCards()).thenReturn(flowOf(singleCardList))
+        // Need to mock getDueCards as well because init calls it.
+        whenever(mockRepository.getDueCards()).thenReturn(flowOf(emptyList()))
+
+
+        viewModel = FlashcardViewModel(mockApplication, mockRepository)
+        advanceUntilIdle() // Let init complete
+
+        viewModel.startManualReview()
+        advanceUntilIdle() // Let startManualReview complete
+
+        val uiState = viewModel.uiState.value
+        assertTrue(uiState.isDeckEmpty, "Deck should be considered empty for manual review")
+        assertNull(uiState.currentCard, "Current card should be null for manual review")
+        assertEquals("Not enough cards in your deck to start a review. Add at least 2 cards.", uiState.progressText)
+        assertEquals(ReviewMode.NONE, uiState.reviewMode)
+        assertTrue(uiState.dueCardsList.isEmpty(), "dueCardsList should be empty in UI state for manual review")
+    }
+
+    @Test
+    fun `startManualReview with zero cards shows not enough cards`() = runTest(testDispatcher) {
+        whenever(mockRepository.getAllCards()).thenReturn(flowOf(emptyList()))
+        whenever(mockRepository.getDueCards()).thenReturn(flowOf(emptyList())) // For init
+
+        viewModel = FlashcardViewModel(mockApplication, mockRepository)
+        advanceUntilIdle()
+
+        viewModel.startManualReview()
+        advanceUntilIdle()
+
+        val uiState = viewModel.uiState.value
+        assertTrue(uiState.isDeckEmpty)
+        assertNull(uiState.currentCard)
+        assertEquals("Not enough cards in your deck to start a review. Add at least 2 cards.", uiState.progressText)
+        assertEquals(ReviewMode.NONE, uiState.reviewMode)
+        assertTrue(uiState.dueCardsList.isEmpty())
+    }
+
+    @Test
+    fun `startManualReview with MINIMUM_CARDS_FOR_REVIEW starts review`() = runTest(testDispatcher) {
+        val twoCardsList = listOf(createTestFlashcard(id = 1), createTestFlashcard(id = 2))
+        whenever(mockRepository.getAllCards()).thenReturn(flowOf(twoCardsList))
+        // Need to mock getDueCards as well because init calls it.
+        whenever(mockRepository.getDueCards()).thenReturn(flowOf(emptyList()))
+
+        viewModel = FlashcardViewModel(mockApplication, mockRepository)
+        advanceUntilIdle() // Let init complete
+
+        viewModel.startManualReview()
+        advanceUntilIdle() // Let startManualReview complete
+
+        val uiState = viewModel.uiState.value
+        assertFalse(uiState.isDeckEmpty, "Deck should not be empty for manual review")
+        assertNotNull(uiState.currentCard, "Current card should be loaded for manual review")
+        assertEquals("Card 1/${twoCardsList.size}", uiState.progressText)
+        assertEquals(ReviewMode.MANUAL, uiState.reviewMode)
+        assertEquals(twoCardsList.size, uiState.dueCardsList.size)
+    }
 }
