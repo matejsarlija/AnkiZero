@@ -150,10 +150,12 @@ fun FlashcardScreen(
                         onSwipeRight = { viewModel.showNextCard(moveForward = false) }
                     )
 
-                    EnhancedButtonRow(
-                        onNoClick = { viewModel.processCardRating(isMemorized = false) },
-                        onMemorizedClick = { viewModel.processCardRating(isMemorized = true) }
-                    )
+                    if (uiState.reviewMode == ReviewMode.NORMAL) { // ADD THIS CONDITION
+                        EnhancedButtonRow(
+                            onNoClick = { viewModel.processCardRating(isMemorized = false) },
+                            onMemorizedClick = { viewModel.processCardRating(isMemorized = true) }
+                        )
+                    }
                 }
             }
             reviewMode == ReviewMode.NONE && uiState.isDeckEmpty -> {
