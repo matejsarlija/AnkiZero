@@ -184,7 +184,7 @@ fun FlashcardScreen(
             uiState.isDeckEmpty -> { // Generic empty state
                 Box(
                     modifier = Modifier.fillMaxSize().padding(16.dp),
-                    contentAlignment = Alignment.center
+                    contentAlignment = Alignment.Center // TO THIS (Uppercase C)
                 ) {
                     Text(
                         "No cards available for review in the current mode.",
