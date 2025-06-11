@@ -29,6 +29,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Style
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import com.example.ankizero.ui.card.StackedCardsAnimation
 import com.example.ankizero.ui.theme.*
 import androidx.compose.ui.tooling.preview.Preview
@@ -231,8 +232,8 @@ fun EnhancedProgressIndicator(
             .shadow(8.dp, RoundedCornerShape(20.dp)),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isDark) androidx.compose.ui.graphics.Color(0xFF2D3748).copy(alpha = 0.9f)
-            else androidx.compose.ui.graphics.Color.White.copy(alpha = 0.95f)
+            containerColor = if (isDark) CardSurfaceDark.copy(alpha = 0.9f)
+            else CardSurfaceLight.copy(alpha = 0.95f)
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
@@ -242,7 +243,7 @@ fun EnhancedProgressIndicator(
             style = MaterialTheme.typography.titleMedium.copy(
                 fontWeight = FontWeight.SemiBold
             ),
-            color = if (isDark) androidx.compose.ui.graphics.Color(0xFF90CDF4) else androidx.compose.ui.graphics.Color(0xFF2B6CB0)
+            color = if (isDark) ProgressIndicatorDark else ProgressIndicatorLight
         )
     }
 }
@@ -294,8 +295,8 @@ fun EnhancedButtonRow(
                 onNoClick()
             },
             text = "No",
-            containerColor = if (isDark) androidx.compose.ui.graphics.Color(0xFF742A2A) else androidx.compose.ui.graphics.Color(0xFFFC8181),
-            contentColor = if (isDark) androidx.compose.ui.graphics.Color(0xFFFC8181) else androidx.compose.ui.graphics.Color.White,
+            containerColor = if (isDark) RetryRedDark else RetryRed,
+            contentColor = if (isDark) RetryRedLight else androidx.compose.ui.graphics.Color.White,
             modifier = Modifier
                 .weight(1f)
                 .testTag("NoButton")
@@ -308,7 +309,7 @@ fun EnhancedButtonRow(
                 onMemorizedClick()
             },
             text = "Memorized",
-            containerColor = if (isDark) androidx.compose.ui.graphics.Color(0xFF2F855A) else androidx.compose.ui.graphics.Color(0xFF48BB78),
+            containerColor = if (isDark) SuccessGreenDark else SuccessGreen,
             contentColor = androidx.compose.ui.graphics.Color.White,
             modifier = Modifier
                 .weight(1f)
@@ -321,8 +322,8 @@ fun EnhancedButtonRow(
 fun EnhancedButton(
     onClick: () -> Unit,
     text: String,
-    containerColor: Color,
-    contentColor: Color,
+    containerColor: androidx.compose.ui.graphics.Color,
+    contentColor: androidx.compose.ui.graphics.Color,
     modifier: Modifier = Modifier
 ) {
     var isPressed by remember { mutableStateOf(false) }
@@ -397,9 +398,9 @@ fun FlashcardView(
     val dragProgress = (abs(dragOffsetX) / 300f).coerceIn(0f, 1f)
     val cardColor by animateColorAsState(
         targetValue = when {
-            dragOffsetX > 50f -> if (isDark) androidx.compose.ui.graphics.Color(0xFF2F855A).copy(alpha = 0.3f) else androidx.compose.ui.graphics.Color(0xFF48BB78).copy(alpha = 0.2f)
-            dragOffsetX < -50f -> if (isDark) androidx.compose.ui.graphics.Color(0xFF742A2A).copy(alpha = 0.3f) else androidx.compose.ui.graphics.Color(0xFFFC8181).copy(alpha = 0.2f)
-            else -> if (isDark) MidGrayNoise.copy(alpha = 0.9f) else androidx.compose.ui.graphics.Color(0xFFF5F5F5) // Slightly less white
+            dragOffsetX > 50f -> if (isDark) SuccessGreenDark.copy(alpha = 0.3f) else SuccessGreen.copy(alpha = 0.2f)
+            dragOffsetX < -50f -> if (isDark) RetryRedDark.copy(alpha = 0.3f) else RetryRed.copy(alpha = 0.2f)
+            else -> if (isDark) CardSurfaceDark.copy(alpha = 0.9f) else CardSurfaceLight
         },
         animationSpec = tween(200),
         label = "cardColor"
@@ -417,7 +418,7 @@ fun FlashcardView(
             .fillMaxWidth(0.88f)
             .aspectRatio(1.5f)
             .drawBehind {
-                val lineColor = androidx.compose.ui.graphics.Color.LightGray.copy(alpha = 0.5f) // Or a theme-aware color
+                val lineColor = TextTertiary.copy(alpha = 0.5f) // Or a theme-aware color
                 val strokeWidthPx = 1.dp.toPx()
                 val gridSizePx = 20.dp.toPx()
 
@@ -467,7 +468,7 @@ fun FlashcardView(
             .shadow(
                 elevation = cardElevation.dp,
                 shape = RoundedCornerShape(24.dp),
-                spotColor = if (isDark) androidx.compose.ui.graphics.Color.White.copy(alpha = 0.1f) else androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.15f)
+                spotColor = if (isDark) ShadowDark.copy(alpha = 0.1f) else ShadowLight.copy(alpha = 0.15f)
             )
             .graphicsLayer {
                 this.rotationY = animatedRotationY
@@ -512,7 +513,7 @@ fun FlashcardView(
                         Brush.radialGradient(
                             colors = listOf(
                                 androidx.compose.ui.graphics.Color.Transparent,
-                                if (isDark) androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.1f) else androidx.compose.ui.graphics.Color.White.copy(alpha = 0.3f)
+                                if (isDark) OverlayDark.copy(alpha = 0.1f) else OverlayLight.copy(alpha = 0.3f)
                             ),
                             radius = 800f
                         )
