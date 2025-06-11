@@ -9,12 +9,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -24,10 +27,13 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Style
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.drawscope.Stroke
 import com.example.ankizero.ui.card.StackedCardsAnimation
 import com.example.ankizero.ui.theme.*
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import android.app.Application
 import com.example.ankizero.AnkiZeroApplication
 import com.example.ankizero.data.database.AppDatabase
@@ -38,10 +44,11 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
-import androidx.compose.ui.graphics.Color
+// androidx.compose.ui.graphics.Color is already imported
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import kotlin.math.abs
+import kotlin.random.Random
 
 @Composable
 fun FlashcardScreen(
@@ -240,6 +247,32 @@ fun EnhancedProgressIndicator(
     }
 }
 
+@Preview(name = "Styled Flashcard View - Light", showBackground = true)
+@Composable
+fun StyledFlashcardViewPreview() {
+    MaterialTheme {
+        FlashcardView(
+            frontText = "Graph Paper Card",
+            backText = "With random lines & letter spacing",
+            onSwipeLeft = { },
+            onSwipeRight = { }
+        )
+    }
+}
+
+@Preview(name = "Styled Flashcard View - Dark", showBackground = true, uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES)
+@Composable
+fun StyledFlashcardViewDarkPreview() {
+    MaterialTheme(colorScheme = darkColorScheme()) {
+        FlashcardView(
+            frontText = "Graph Paper Card (Dark)",
+            backText = "Random lines & letter spacing",
+            onSwipeLeft = { },
+            onSwipeRight = { }
+        )
+    }
+}
+
 @Composable
 fun EnhancedButtonRow(
     onNoClick: () -> Unit,
@@ -348,6 +381,7 @@ fun FlashcardView(
     var flipped by remember { mutableStateOf(false) }
     var dragOffsetX by remember { mutableFloatStateOf(0f) }
     val isDark = isSystemInDarkTheme()
+    val isDiagonalGrid by remember(frontText) { mutableStateOf(Random.nextBoolean()) }
 
     // Enhanced flip animation with spring
     val animatedRotationY by animateFloatAsState(
@@ -382,6 +416,54 @@ fun FlashcardView(
         modifier = modifier
             .fillMaxWidth(0.88f)
             .aspectRatio(1.5f)
+            .drawBehind {
+                val lineColor = Color.LightGray.copy(alpha = 0.5f) // Or a theme-aware color
+                val strokeWidthPx = 1.dp.toPx()
+                val gridSizePx = 20.dp.toPx()
+
+                val drawLines = {
+                    // Extend drawing area by a margin to ensure coverage when rotated
+                    val margin = gridSizePx * 2
+                    val extendedWidth = size.width + margin * 2
+                    val extendedHeight = size.height + margin * 2
+                    val startX = -margin
+                    val startY = -margin
+
+                    // Vertical lines
+                    var currentX = startX
+                    while (currentX < extendedWidth - margin) {
+                        drawLine(
+                            color = lineColor,
+                            start = androidx.compose.ui.geometry.Offset(currentX, startY),
+                            end = androidx.compose.ui.geometry.Offset(currentX, startY + extendedHeight),
+                            strokeWidth = strokeWidthPx
+                        )
+                        currentX += gridSizePx
+                    }
+
+                    // Horizontal lines
+                    var currentY = startY
+                    while (currentY < extendedHeight - margin) {
+                        drawLine(
+                            color = lineColor,
+                            start = androidx.compose.ui.geometry.Offset(startX, currentY),
+                            end = androidx.compose.ui.geometry.Offset(startX + extendedWidth, currentY),
+                            strokeWidth = strokeWidthPx
+                        )
+                        currentY += gridSizePx
+                    }
+                }
+
+                if (isDiagonalGrid) {
+                    // Rotate the canvas for the diagonal effect
+                    this.drawContext.transform.rotate(degrees = 15.0f, pivot = this.center) {
+                        drawLines()
+                    }
+                } else {
+                    // Draw standard horizontal/vertical lines
+                    drawLines()
+                }
+            }
             .shadow(
                 elevation = cardElevation.dp,
                 shape = RoundedCornerShape(24.dp),
@@ -443,7 +525,8 @@ fun FlashcardView(
                 Text(
                     text = frontText,
                     style = MaterialTheme.typography.headlineMedium.copy(
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.5.sp
                     ),
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -457,7 +540,8 @@ fun FlashcardView(
                 Text(
                     text = backText,
                     style = MaterialTheme.typography.headlineSmall.copy(
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = 1.2.sp
                     ),
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurface,
