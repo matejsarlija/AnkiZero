@@ -58,7 +58,7 @@ fun StackedCardsAnimation(
     )
 
     val tiltAngle = -15f
-    val horizontalOffsetUnit = 30f
+    val horizontalOffsetUnit = 45f
 
     // Animation for Bottom Card (Card 1) - zIndex 1f
     val bottomCardRotationZ by animateFloatAsState(
@@ -72,7 +72,7 @@ fun StackedCardsAnimation(
         label = "bottomCardTranslationX"
     )
     val bottomCardTranslationY by animateFloatAsState(
-        targetValue = if (isRevealed) 100f else 10f, // Was 150f revealed, 20f initial
+        targetValue = if (isRevealed) 80f else 8f, // Was 150f revealed, 20f initial
         animationSpec = springSpec,
         label = "bottomCardTranslationY"
     )
@@ -99,7 +99,7 @@ fun StackedCardsAnimation(
         label = "middleCardTranslationX"
     )
     val middleCardTranslationY by animateFloatAsState(
-        targetValue = if (isRevealed) 50f else 5f, // Was 75f revealed, 10f initial
+        targetValue = if (isRevealed) 40f else 4f, // Was 75f revealed, 10f initial
         animationSpec = springSpec,
         label = "middleCardTranslationY"
     )
@@ -167,7 +167,7 @@ fun StackedCardsAnimation(
         // Bottom Card
         Card(
             modifier = Modifier
-                .size(width = 150.dp, height = 220.dp)
+                .size(width = 220.dp, height = 150.dp)
                 .align(Alignment.Center)
                 .zIndex(1f)
                 .graphicsLayer {
@@ -202,7 +202,7 @@ fun StackedCardsAnimation(
         // Middle Card
         Card(
             modifier = Modifier
-                .size(width = 150.dp, height = 220.dp)
+                .size(width = 220.dp, height = 150.dp)
                 .align(Alignment.Center)
                 .zIndex(2f)
                 .graphicsLayer {
@@ -238,7 +238,7 @@ fun StackedCardsAnimation(
         // Top Card (becomes the main card)
         Card(
             modifier = Modifier
-                .size(width = 150.dp, height = 220.dp)
+                .size(width = 220.dp, height = 150.dp)
                 .align(Alignment.Center)
                 .zIndex(3f)
                 .graphicsLayer {
