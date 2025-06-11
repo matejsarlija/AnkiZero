@@ -382,7 +382,7 @@ fun FlashcardView(
     var flipped by remember { mutableStateOf(false) }
     var dragOffsetX by remember { mutableFloatStateOf(0f) }
     val isDark = isSystemInDarkTheme()
-    val isDiagonalGrid by remember(frontText) { mutableStateOf(Random.nextBoolean()) }
+    // Removed diagonal grid - keeping it simple with straight lines
 
     // Enhanced flip animation with spring
     val animatedRotationY by animateFloatAsState(
@@ -400,6 +400,10 @@ fun FlashcardView(
         targetValue = when {
             dragOffsetX > 50f -> if (isDark) SuccessGreenDark.copy(alpha = 0.3f) else SuccessGreen.copy(alpha = 0.2f)
             dragOffsetX < -50f -> if (isDark) RetryRedDark.copy(alpha = 0.3f) else RetryRed.copy(alpha = 0.2f)
+            // Ensure CardSurfaceLight is used here, assuming it's opaque white for light theme as per earlier discussions.
+            // If my previous change to CardSurfaceLight.copy(alpha=1f) was in this code block, that should be reverted if this code is a full replacement.
+            // The user's provided code had 'else -> if (isDark) CardSurfaceDark.copy(alpha = 0.9f) else CardSurfaceLight'
+            // This should be maintained.
             else -> if (isDark) CardSurfaceDark.copy(alpha = 0.9f) else CardSurfaceLight
         },
         animationSpec = tween(200),
@@ -417,54 +421,6 @@ fun FlashcardView(
         modifier = modifier
             .fillMaxWidth(0.88f)
             .aspectRatio(1.5f)
-            .drawBehind {
-                val lineColor = TextTertiary.copy(alpha = 0.5f) // Or a theme-aware color
-                val strokeWidthPx = 1.dp.toPx()
-                val gridSizePx = 20.dp.toPx()
-
-                val drawLines = {
-                    // Extend drawing area by a margin to ensure coverage when rotated
-                    val margin = gridSizePx * 2
-                    val extendedWidth = size.width + margin * 2
-                    val extendedHeight = size.height + margin * 2
-                    val startX = -margin
-                    val startY = -margin
-
-                    // Vertical lines
-                    var currentX = startX
-                    while (currentX < extendedWidth - margin) {
-                        drawLine(
-                            color = lineColor,
-                            start = androidx.compose.ui.geometry.Offset(currentX, startY),
-                            end = androidx.compose.ui.geometry.Offset(currentX, startY + extendedHeight),
-                            strokeWidth = strokeWidthPx
-                        )
-                        currentX += gridSizePx
-                    }
-
-                    // Horizontal lines
-                    var currentY = startY
-                    while (currentY < extendedHeight - margin) {
-                        drawLine(
-                            color = lineColor,
-                            start = androidx.compose.ui.geometry.Offset(startX, currentY),
-                            end = androidx.compose.ui.geometry.Offset(startX + extendedWidth, currentY),
-                            strokeWidth = strokeWidthPx
-                        )
-                        currentY += gridSizePx
-                    }
-                }
-
-                if (isDiagonalGrid) {
-                    // Rotate the canvas for the diagonal effect
-                    rotate(degrees = 15.0f, pivot = this.center) {
-                        drawLines()
-                    }
-                } else {
-                    // Draw standard horizontal/vertical lines
-                    drawLines()
-                }
-            }
             .shadow(
                 elevation = cardElevation.dp,
                 shape = RoundedCornerShape(24.dp),
@@ -502,7 +458,48 @@ fun FlashcardView(
         shape = RoundedCornerShape(24.dp)
     ) {
         Box(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .drawBehind {
+                    // MODIFICATION 1: Change alpha of lineColor
+                    val lineColor = TextTertiary.copy(alpha = 0.3f) // Changed from 0.5f
+                    val strokeWidthPx = 1.dp.toPx()
+                    // MODIFICATION 2: Change dp value for gridSizePx
+                    val gridSizePx = 42.dp.toPx() // Changed from 20.dp
+
+                    val drawLines = {
+                        // Use the actual card size bounds - no extension needed
+                        val cardWidth = size.width
+                        val cardHeight = size.height
+
+                        // Vertical lines - stay within card bounds
+                        var currentX = 0f
+                        while (currentX <= cardWidth) {
+                            drawLine(
+                                color = lineColor,
+                                start = androidx.compose.ui.geometry.Offset(currentX, 0f),
+                                end = androidx.compose.ui.geometry.Offset(currentX, cardHeight),
+                                strokeWidth = strokeWidthPx
+                            )
+                            currentX += gridSizePx
+                        }
+
+                        // Horizontal lines - stay within card bounds
+                        var currentY = 0f
+                        while (currentY <= cardHeight) {
+                            drawLine(
+                                color = lineColor,
+                                start = androidx.compose.ui.geometry.Offset(0f, currentY),
+                                end = androidx.compose.ui.geometry.Offset(cardWidth, currentY),
+                                strokeWidth = strokeWidthPx
+                            )
+                            currentY += gridSizePx
+                        }
+                    }
+
+                    // Always draw clean straight grid lines
+                    drawLines()
+                },
             contentAlignment = Alignment.Center
         ) {
             // Subtle gradient overlay
