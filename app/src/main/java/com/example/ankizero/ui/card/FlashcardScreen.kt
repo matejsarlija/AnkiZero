@@ -382,6 +382,7 @@ fun FlashcardView(
     var flipped by remember { mutableStateOf(false) }
     var dragOffsetX by remember { mutableFloatStateOf(0f) }
     val isDark = isSystemInDarkTheme()
+    var revealedLetterCount by remember { mutableStateOf(0) }
     val isDiagonalGrid by remember(frontText) { mutableStateOf(Random.nextBoolean()) }
 
     // Enhanced flip animation with spring
@@ -393,6 +394,41 @@ fun FlashcardView(
         ),
         label = "rotationY"
     )
+
+    // Letter reveal effect for frontText
+    LaunchedEffect(key1 = frontText, key2 = flipped, key3 = animatedRotationY) {
+        if (!flipped && animatedRotationY < 90f) { // Front is visible
+            if (revealedLetterCount > frontText.length) { // Reset if text shrank
+                revealedLetterCount = 0
+            }
+            // Only start animation if not fully revealed
+            if (revealedLetterCount < frontText.length) {
+                for (i in revealedLetterCount until frontText.length) {
+                    kotlinx.coroutines.delay(50L) // Ensure delay is 50L
+                    revealedLetterCount++
+                }
+            }
+        } else {
+            // Reset when card is flipped to back or not visible
+            revealedLetterCount = 0
+        }
+    }
+     // Reset revealedLetterCount if frontText changes while front is visible
+    LaunchedEffect(frontText) {
+        if (!flipped && animatedRotationY < 90f) {
+            revealedLetterCount = 0
+            // Restart animation for new text
+            for (i in 0 until frontText.length) {
+                kotlinx.coroutines.delay(50L) // Ensure delay is 50L
+                if (!flipped && animatedRotationY < 90f) { // Ensure still on front
+                    revealedLetterCount = i + 1
+                } else {
+                    break // Stop if card flipped during new text animation
+                }
+            }
+        }
+    }
+
 
     // Dynamic card colors based on drag
     val dragProgress = (abs(dragOffsetX) / 300f).coerceIn(0f, 1f)
@@ -532,11 +568,20 @@ fun FlashcardView(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     frontText.forEachIndexed { index, char ->
+                        val charScaleY by animateFloatAsState(
+                            targetValue = if (index < revealedLetterCount) 1f else 0f,
+                            animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing), // Updated animationSpec
+                            label = "charScaleY_$index"
+                        )
                         Box(
                             modifier = Modifier
                                 .wrapContentSize()
                                 .background(androidx.compose.ui.graphics.Color.Transparent) // Invisible vertical rectangle
                                 .testTag("CharacterBoxFront-$index")
+                                .graphicsLayer {
+                                    scaleY = charScaleY
+                                    transformOrigin = androidx.compose.ui.graphics.TransformOrigin.Top
+                                }
                         ) {
                             Text(
                                 text = char.toString(),
@@ -551,20 +596,20 @@ fun FlashcardView(
                     }
                 }
             } else {
-                // Back side
+                // Back side - No changes here, renders as before
                 Row(
                     modifier = Modifier
                         .padding(24.dp)
-                        .graphicsLayer { rotationY = 180f }
+                        .graphicsLayer { rotationY = 180f } // Keep this for the flip
                         .testTag("CardBackText"),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     backText.forEachIndexed { index, char ->
-                        Box(
+                        Box( // Existing Box structure for back text, no animation
                             modifier = Modifier
                                 .wrapContentSize()
-                                .background(androidx.compose.ui.graphics.Color.Transparent) // Invisible vertical rectangle
+                                .background(androidx.compose.ui.graphics.Color.Transparent)
                                 .testTag("CharacterBoxBack-$index")
                         ) {
                             Text(
