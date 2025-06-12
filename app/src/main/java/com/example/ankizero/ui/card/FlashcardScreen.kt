@@ -580,7 +580,7 @@ fun FlashcardView(
                                 .testTag("CharacterBoxFront-$index")
                                 .graphicsLayer {
                                     scaleY = charScaleY
-                                    transformOrigin = androidx.compose.ui.graphics.TransformOrigin.Top
+                                    transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0f)
                                 }
                         ) {
                             Text(
