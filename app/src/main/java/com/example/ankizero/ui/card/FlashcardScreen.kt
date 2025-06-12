@@ -523,34 +523,62 @@ fun FlashcardView(
             // Card content
             if (animatedRotationY <= 90f || animatedRotationY >= 270f) {
                 // Front side
-                Text(
-                    text = frontText,
-                    style = MaterialTheme.typography.headlineMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.5.sp
-                    ),
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurface,
+                Row(
                     modifier = Modifier
                         .padding(24.dp)
                         .graphicsLayer { rotationY = 0f }
-                        .testTag("CardFrontText")
-                )
+                        .testTag("CardFrontText"),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    frontText.forEachIndexed { index, char ->
+                        Box(
+                            modifier = Modifier
+                                .wrapContentSize()
+                                .background(androidx.compose.ui.graphics.Color.Transparent) // Invisible vertical rectangle
+                                .testTag("CharacterBoxFront-$index")
+                        ) {
+                            Text(
+                                text = char.toString(),
+                                style = MaterialTheme.typography.headlineMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.5.sp
+                                ),
+                                textAlign = TextAlign.Center,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
             } else {
                 // Back side
-                Text(
-                    text = backText,
-                    style = MaterialTheme.typography.headlineSmall.copy(
-                        fontWeight = FontWeight.SemiBold,
-                        letterSpacing = 1.2.sp
-                    ),
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurface,
+                Row(
                     modifier = Modifier
                         .padding(24.dp)
                         .graphicsLayer { rotationY = 180f }
-                        .testTag("CardBackText")
-                )
+                        .testTag("CardBackText"),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    backText.forEachIndexed { index, char ->
+                        Box(
+                            modifier = Modifier
+                                .wrapContentSize()
+                                .background(androidx.compose.ui.graphics.Color.Transparent) // Invisible vertical rectangle
+                                .testTag("CharacterBoxBack-$index")
+                        ) {
+                            Text(
+                                text = char.toString(),
+                                style = MaterialTheme.typography.headlineSmall.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    letterSpacing = 1.2.sp
+                                ),
+                                textAlign = TextAlign.Center,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
             }
         }
     }
