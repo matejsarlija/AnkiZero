@@ -31,6 +31,11 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import com.example.ankizero.ui.card.StackedCardsAnimation
+import com.example.ankizero.ui.shared.AnimatedCharacter
+import com.example.ankizero.ui.shared.AnimatedText
+import com.example.ankizero.ui.shared.EnhancedButton // Import the shared button
+import com.example.ankizero.ui.shared.PaperGrid
+import com.example.ankizero.ui.shared.TextAnimationType
 import com.example.ankizero.ui.theme.*
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -291,7 +296,7 @@ fun EnhancedButtonRow(
     onNoClick: () -> Unit,
     onMemorizedClick: () -> Unit
 ) {
-    val haptic = LocalHapticFeedback.current
+    // val haptic = LocalHapticFeedback.current // Removed haptic from here
     val isDark = isSystemInDarkTheme()
 
     Row(
@@ -301,11 +306,8 @@ fun EnhancedButtonRow(
         horizontalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         // No Button - Enhanced with ripple effect
-        EnhancedButton(
-            onClick = {
-                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                onNoClick()
-            },
+        com.example.ankizero.ui.shared.EnhancedButton( // Use fully qualified name or add import
+            onClick = onNoClick, // Haptic is now handled within EnhancedButton
             text = "No",
             containerColor = if (isDark) RetryRedDark else RetryRed,
             contentColor = if (isDark) RetryRedLight else androidx.compose.ui.graphics.Color.White,
@@ -315,11 +317,8 @@ fun EnhancedButtonRow(
         )
 
         // Memorized Button - Enhanced with success colors
-        EnhancedButton(
-            onClick = {
-                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                onMemorizedClick()
-            },
+        com.example.ankizero.ui.shared.EnhancedButton( // Use fully qualified name or add import
+            onClick = onMemorizedClick, // Haptic is now handled within EnhancedButton
             text = "Memorized",
             containerColor = if (isDark) SuccessGreenDark else SuccessGreen,
             contentColor = androidx.compose.ui.graphics.Color.White,
@@ -330,58 +329,7 @@ fun EnhancedButtonRow(
     }
 }
 
-@Composable
-fun EnhancedButton(
-    onClick: () -> Unit,
-    text: String,
-    containerColor: androidx.compose.ui.graphics.Color,
-    contentColor: androidx.compose.ui.graphics.Color,
-    modifier: Modifier = Modifier
-) {
-    var isPressed by remember { mutableStateOf(false) }
-
-    val animatedScale by animateFloatAsState(
-        targetValue = if (isPressed) 0.95f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "buttonScale"
-    )
-
-    Button(
-        onClick = onClick,
-        modifier = modifier
-            .height(56.dp)
-            .graphicsLayer {
-                scaleX = animatedScale
-                scaleY = animatedScale
-            }
-            .pointerInput(Unit) {
-                detectHorizontalDragGestures(
-                    onDragStart = { isPressed = true },
-                    onDragEnd = { isPressed = false },
-                    onHorizontalDrag = { _, _ -> }
-                )
-            },
-        shape = RoundedCornerShape(16.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = containerColor,
-            contentColor = contentColor
-        ),
-        elevation = ButtonDefaults.buttonElevation(
-            defaultElevation = 6.dp,
-            pressedElevation = 2.dp
-        )
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.titleMedium.copy(
-                fontWeight = FontWeight.Bold
-            )
-        )
-    }
-}
+// Removed EnhancedButton composable from here
 
 @Composable
 fun FlashcardView(
@@ -394,7 +342,8 @@ fun FlashcardView(
     var flipped by remember { mutableStateOf(false) }
     var dragOffsetX by remember { mutableFloatStateOf(0f) }
     val isDark = isSystemInDarkTheme()
-    var revealedLetterCount by remember(frontText, flipped) { mutableStateOf(0) }
+    val haptic = LocalHapticFeedback.current // Added Haptic Feedback instance
+    // var revealedLetterCount by remember(frontText, flipped) { mutableStateOf(0) } // Removed
 
     // Enhanced flip animation with spring
     val animatedRotationY by animateFloatAsState(
@@ -406,20 +355,20 @@ fun FlashcardView(
         label = "rotationY"
     )
 
-    // Simplified letter reveal effect - only when showing front
-    LaunchedEffect(frontText, flipped) {
-        if (!flipped) {
-            revealedLetterCount = 0
-            for (i in frontText.indices) {
-                delay(80L)
-                if (!flipped) { // Check if still on front
-                    revealedLetterCount = i + 1
-                } else {
-                    break
-                }
-            }
-        }
-    }
+    // Simplified letter reveal effect - only when showing front // Removed LaunchedEffect
+    // LaunchedEffect(frontText, flipped) {
+    //     if (!flipped) {
+    //         revealedLetterCount = 0
+    //         for (i in frontText.indices) {
+    //             delay(80L)
+    //             if (!flipped) { // Check if still on front
+    //                 revealedLetterCount = i + 1
+    //             } else {
+    //                 break
+    //             }
+    //         }
+    //     }
+    // }
 
     // Dynamic card colors based on drag
     val dragProgress = (abs(dragOffsetX) / 300f).coerceIn(0f, 1f)
@@ -457,6 +406,7 @@ fun FlashcardView(
                 this.scaleY = 1f - (dragProgress * 0.05f)
             }
             .clickable {
+                haptic.performHapticFeedback(HapticFeedbackType.VirtualKey) // Haptic on flip
                 flipped = !flipped
             }
             .pointerInput(Unit) {
@@ -469,8 +419,14 @@ fun FlashcardView(
                     onDragEnd = {
                         val swipeThreshold = 120f
                         when {
-                            dragOffsetX > swipeThreshold -> onSwipeRight()
-                            dragOffsetX < -swipeThreshold -> onSwipeLeft()
+                            dragOffsetX > swipeThreshold -> {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) // Haptic on swipe right
+                                onSwipeRight()
+                            }
+                            dragOffsetX < -swipeThreshold -> {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) // Haptic on swipe left
+                                onSwipeLeft()
+                            }
                         }
                         dragOffsetX = 0f
                     }
@@ -484,45 +440,11 @@ fun FlashcardView(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            // Paper grid background - INSIDE the card (STRAIGHT GRID ONLY)
-            Canvas(
+            PaperGrid(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(RoundedCornerShape(24.dp)) // Ensure grid stays within card bounds
-            ) {
-                val lineColor = if (isDark)
-                    androidx.compose.ui.graphics.Color.White.copy(alpha = 0.1f)
-                else
-                    androidx.compose.ui.graphics.Color.Gray.copy(alpha = 0.2f)
-                val strokeWidthPx = 0.5.dp.toPx()
-                val gridSizePx = 20.dp.toPx()
-
-                // Draw regular straight grid only
-                // Vertical lines
-                var x = 0f
-                while (x < size.width) {
-                    drawLine(
-                        color = lineColor,
-                        start = Offset(x, 0f),
-                        end = Offset(x, size.height),
-                        strokeWidth = strokeWidthPx
-                    )
-                    x += gridSizePx
-                }
-
-                // Horizontal lines
-                var y = 0f
-                while (y < size.height) {
-                    drawLine(
-                        color = lineColor,
-                        start = Offset(0f, y),
-                        end = Offset(size.width, y),
-                        strokeWidth = strokeWidthPx
-                    )
-                    y += gridSizePx
-                }
-            }
-
+            )
             // Subtle gradient overlay
             Box(
                 modifier = Modifier
@@ -541,48 +463,20 @@ fun FlashcardView(
             // Card content
             if (animatedRotationY <= 90f || animatedRotationY >= 270f) {
                 // Front side with letter animation
-                Row(
+                AnimatedText(
+                    text = frontText,
+                    isVisible = !flipped, // Show when not flipped
+                    style = MaterialTheme.typography.headlineMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.5.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    ),
                     modifier = Modifier
                         .padding(24.dp)
                         .graphicsLayer { rotationY = 0f }
-                        .testTag("CardFrontText"),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    frontText.forEachIndexed { index, char ->
-                        val isVisible = index < revealedLetterCount
-                        val charAlpha by animateFloatAsState(
-                            targetValue = if (isVisible) 1f else 0f,
-                            animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
-                            label = "charAlpha_$index"
-                        )
-                        val charScale by animateFloatAsState(
-                            targetValue = if (isVisible) 1f else 0.3f,
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                stiffness = Spring.StiffnessLow
-                            ),
-                            label = "charScale_$index"
-                        )
-
-                        Text(
-                            text = char.toString(),
-                            style = MaterialTheme.typography.headlineMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.5.sp
-                            ),
-                            textAlign = TextAlign.Center,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier
-                                .testTag("CharacterBoxFront-$index")
-                                .graphicsLayer {
-                                    alpha = charAlpha
-                                    scaleX = charScale
-                                    scaleY = charScale
-                                }
-                        )
-                    }
-                }
+                        .testTag("CardFrontAnimatedText"),
+                    testTagPrefix = "CardFrontChar" // Prefix for individual characters
+                )
             } else {
                 // Back side - static text
                 Text(
