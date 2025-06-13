@@ -23,9 +23,14 @@
     <!-- Create Card Screen -->
     <string name="create_card_screen_title">Create New Card</string>
     <string name="save_new_card_cd">Save new card</string>
+    <string name="french_word_empty_error">French word cannot be empty</string>
+    <string name="english_translation_empty_error">English translation cannot be empty</string>
+    <string name="card_created_successfully">Card created successfully</string>
+    <string name="card_updated_successfully">Card updated successfully</string>
 
     <!-- Edit Card Screen -->
     <string name="edit_card_screen_title">Edit Card</string>
     <string name="save_changes_to_card_cd">Save changes to card</string>
+    <string name="card_not_found_error">Error: Card not found.</string>
 
 </resources>

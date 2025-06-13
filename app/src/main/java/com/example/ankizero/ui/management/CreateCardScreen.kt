@@ -12,43 +12,47 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource // Added
-import androidx.compose.ui.tooling.preview.Preview
+// import androidx.compose.ui.tooling.preview.Preview // Preview removed
 import androidx.compose.ui.unit.dp
-import com.example.ankizero.data.entity.Flashcard
+import androidx.lifecycle.viewmodel.compose.viewModel // Added
+import android.app.Application // Added for Application parameter
+import com.example.ankizero.data.repository.FlashcardRepository // Added for Repository parameter
+// import com.example.ankizero.ui.management.CardManagementViewModelFactory // Will be defined in this file or imported if separate
+// import com.example.ankizero.data.entity.Flashcard // No longer creating Flashcard here
 import com.example.ankizero.R // Added
-import java.time.LocalDate
-import java.time.ZoneOffset
+// import kotlinx.coroutines.launch // No longer needed for local scope
+// import java.time.LocalDate // Not used
+// import java.time.ZoneOffset // Not used
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateCardScreen(
-    onNavigateBack: () -> Unit,
-    // onSaveCard: (Flashcard) -> Unit // To be used when ViewModel is integrated
+    application: Application,      // Added
+    repository: FlashcardRepository, // Added
+    onNavigateBack: () -> Unit
+    // viewModel: CardManagementViewModel = viewModel() // Original line removed
 ) {
-    var frenchWord by remember { mutableStateOf("") }
-    var englishTranslation by remember { mutableStateOf("") }
-    var pronunciation by remember { mutableStateOf("") }
-    var exampleSentence by remember { mutableStateOf("") }
-    var notes by remember { mutableStateOf("") }
-    var difficulty by remember { mutableStateOf(2f) } // Default difficulty (e.g., 1-5, so 2f is like 3)
+    val viewModel: CardManagementViewModel = viewModel(
+        factory = CardManagementViewModelFactory(application, repository)
+    )
+    val createCardFormState by viewModel.createCardFormState.collectAsState()
 
-    var frenchWordError by remember { mutableStateOf<String?>(null) }
-    var englishTranslationError by remember { mutableStateOf<String?>(null) }
+    // val snackbarHostState = remember { SnackbarHostState() } // Keep if snackbar is shown from here, or move logic to VM if it controls snackbar
+    // val scope = rememberCoroutineScope() // Keep if snackbar is shown from here
 
-    val snackbarHostState = remember { SnackbarHostState() }
-
-    fun validateFields(): Boolean {
-        frenchWordError = if (frenchWord.isBlank()) "French word cannot be empty" else null
-        englishTranslationError = if (englishTranslation.isBlank()) "English translation cannot be empty" else null
-        return frenchWordError == null && englishTranslationError == null
+    // DisposableEffect to reset form state when the screen is disposed
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.resetCreateCardFormState()
+        }
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        // snackbarHost = { SnackbarHost(snackbarHostState) }, // Keep or remove based on where snackbar is handled
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(id = R.string.create_card_screen_title)) }, // Placeholder, add to strings.xml
+                title = { Text(stringResource(id = R.string.create_card_screen_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = stringResource(id = R.string.back_cd))
@@ -57,14 +61,18 @@ fun CreateCardScreen(
                 actions = {
                     IconButton(
                         onClick = {
-                            if (validateFields()) {
-                                // ... card creation ...
+                            viewModel.saveNewCard {
+                                // Assuming onNavigateBack is the onSuccess action
                                 onNavigateBack()
+                                // If snackbar needs to be shown, it should be triggered here or by listening to a state from VM
+                                // scope.launch {
+                                // snackbarHostState.showSnackbar(message = stringResource(id = R.string.card_created_successfully))
+                                // }
                             }
                         },
                         modifier = Modifier.testTag("SaveCardButton")
                     ) {
-                        Icon(Icons.Filled.Done, contentDescription = stringResource(id = R.string.save_new_card_cd)) // Placeholder, add to strings.xml
+                        Icon(Icons.Filled.Done, contentDescription = stringResource(id = R.string.save_new_card_cd))
                     }
                 }
             )
@@ -75,31 +83,31 @@ fun CreateCardScreen(
                 .padding(paddingValues)
                 .padding(16.dp)
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState()) // Make form scrollable
+                .verticalScroll(rememberScrollState())
         ) {
             OutlinedTextField(
-                value = frenchWord,
-                onValueChange = { frenchWord = it; frenchWordError = null },
+                value = createCardFormState.frenchWord,
+                onValueChange = { viewModel.updateNewFrenchWord(it) },
                 label = { Text("French Word*") },
-                modifier = Modifier.fillMaxWidth().testTag("FrenchWordTextField"), // Added
-                isError = frenchWordError != null,
+                modifier = Modifier.fillMaxWidth().testTag("FrenchWordTextField"),
+                isError = createCardFormState.frenchWordError != null,
                 singleLine = true
             )
-            if (frenchWordError != null) {
-                Text(frenchWordError!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.testTag("FrenchWordErrorText")) // Added
+            if (createCardFormState.frenchWordError != null) {
+                Text(createCardFormState.frenchWordError!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.testTag("FrenchWordErrorText"))
             }
             Spacer(modifier = Modifier.height(12.dp))
 
             OutlinedTextField(
-                value = englishTranslation,
-                onValueChange = { englishTranslation = it; englishTranslationError = null },
+                value = createCardFormState.englishTranslation,
+                onValueChange = { viewModel.updateNewEnglishTranslation(it) },
                 label = { Text("English Translation*") },
-                modifier = Modifier.fillMaxWidth().testTag("EnglishTranslationTextField"), // Added
-                isError = englishTranslationError != null,
+                modifier = Modifier.fillMaxWidth().testTag("EnglishTranslationTextField"),
+                isError = createCardFormState.englishTranslationError != null,
                 singleLine = true
             )
-            if (englishTranslationError != null) {
-                Text(englishTranslationError!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.testTag("EnglishTranslationErrorText")) // Added
+            if (createCardFormState.englishTranslationError != null) {
+                Text(createCardFormState.englishTranslationError!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.testTag("EnglishTranslationErrorText"))
             }
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -107,17 +115,8 @@ fun CreateCardScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             OutlinedTextField(
-                value = pronunciation,
-                onValueChange = { pronunciation = it },
-                label = { Text("Pronunciation") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-
-            OutlinedTextField(
-                value = exampleSentence,
-                onValueChange = { exampleSentence = it },
+                value = createCardFormState.exampleSentence,
+                onValueChange = { viewModel.updateNewExampleSentence(it) },
                 label = { Text("Example Sentence") },
                 modifier = Modifier.fillMaxWidth(),
                 maxLines = 3
@@ -125,8 +124,8 @@ fun CreateCardScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             OutlinedTextField(
-                value = notes,
-                onValueChange = { notes = it },
+                value = createCardFormState.notes,
+                onValueChange = { viewModel.updateNewNotes(it) },
                 label = { Text("Notes") },
                 modifier = Modifier.fillMaxWidth(),
                 maxLines = 5
@@ -135,14 +134,14 @@ fun CreateCardScreen(
 
             Text("Difficulty (1-5)", style = MaterialTheme.typography.bodyMedium)
             Slider(
-                value = difficulty,
-                onValueChange = { difficulty = it },
-                valueRange = 0f..4f, // Represents 1 to 5
+                value = createCardFormState.difficulty,
+                onValueChange = { viewModel.updateNewDifficulty(it) },
+                valueRange = 0f..4f, // Represents 1 to 5. ViewModel stores 0f-4f, Flashcard entity stores 1-5
                 steps = 3, // 0, 1, 2, 3, 4 (5 steps)
                 modifier = Modifier.fillMaxWidth()
             )
             Text(
-                text = "Selected: ${(difficulty.roundToInt() + 1)}",
+                text = "Selected: ${(createCardFormState.difficulty.roundToInt() + 1)}", // UI display remains 1-5
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.align(Alignment.End)
             )
@@ -150,30 +149,5 @@ fun CreateCardScreen(
     }
 }
 
-@Preview(showBackground = true, name = "Create Card Screen - Light")
-@Composable
-fun CreateCardScreenPreviewLight() {
-    MaterialTheme(colorScheme = lightColorScheme()) {
-        CreateCardScreen(onNavigateBack = {})
-    }
-}
-
-@Preview(showBackground = true, name = "Create Card Screen - Dark")
-@Composable
-fun CreateCardScreenPreviewDark() {
-    MaterialTheme(colorScheme = darkColorScheme()) {
-        CreateCardScreen(onNavigateBack = {})
-    }
-}
-
-@Preview(showBackground = true, name = "Create Card Screen - Error State")
-@Composable
-fun CreateCardScreenErrorPreview() {
-    MaterialTheme(colorScheme = lightColorScheme()) {
-        // This preview is hard to show with current state logic without interaction.
-        // We'd typically pass initial error states or use a helper.
-        // For now, this will render the default empty screen.
-        // To see errors, one would need to run on device/emulator and attempt to save empty.
-        CreateCardScreen(onNavigateBack = {})
-    }
-}
+// Preview functions are typically removed or conditionalized for production code if they cause issues.
+// For this refactoring, ensure no @Preview is left if it was causing errors.

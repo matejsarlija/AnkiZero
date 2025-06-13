@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.ankizero.data.entity.Flashcard
 import com.example.ankizero.data.repository.FlashcardRepository
 import com.example.ankizero.util.AnalyticsHelper // Added
+import com.example.ankizero.R // Added for string resources
 // Re-import or define SortOption if it was removed from CardManagementScreen.kt
 // For this refactor, assume SortOption is defined here or in a common place.
 // enum class SortOption { Alphabetical, Recent, Difficulty } // Make sure this is the one used
@@ -22,6 +23,31 @@ data class CardManagementUiState(
     val sortMenuExpanded: Boolean = false // If needed for UI, though often local state in screen
 )
 
+// Define CreateCardFormState data class
+data class CreateCardFormState(
+    val frenchWord: String = "",
+    val englishTranslation: String = "",
+    val exampleSentence: String = "",
+    val notes: String = "",
+    val difficulty: Float = 0.5f, // Default difficulty
+    val frenchWordError: String? = null,
+    val englishTranslationError: String? = null
+)
+
+// Define EditCardFormState data class
+data class EditCardFormState(
+    val id: Long? = null,
+    val frenchWord: String = "",
+    val englishTranslation: String = "",
+    val exampleSentence: String = "", // Added exampleSentence field
+    val notes: String = "",
+    val difficulty: Float = 0.5f, // Default difficulty
+    val frenchWordError: String? = null,
+    val englishTranslationError: String? = null,
+    val isLoading: Boolean = true, // To indicate if card data is being loaded
+    val cardNotFound: Boolean = false // To indicate if the card couldn't be loaded
+)
+
 class CardManagementViewModel(
     application: Application, // Added
     private val repository: FlashcardRepository
@@ -30,8 +56,16 @@ class CardManagementViewModel(
     private val _searchQuery = MutableStateFlow("")
     private val _sortOption = MutableStateFlow(SortOption.Recent)
     private val _selectedCardIds = MutableStateFlow(emptySet<Long>())
-    private val _isLoading = MutableStateFlow(true)
+    private val _isLoading = MutableStateFlow(true) // General loading for card list
     private val _sortMenuExpanded = MutableStateFlow(false) // Example if UI needs it from VM
+
+    // CreateCardFormState management
+    private val _createCardFormState = MutableStateFlow(CreateCardFormState())
+    val createCardFormState: StateFlow<CreateCardFormState> = _createCardFormState.asStateFlow()
+
+    // EditCardFormState management
+    private val _editCardFormState = MutableStateFlow(EditCardFormState())
+    val editCardFormState: StateFlow<EditCardFormState> = _editCardFormState.asStateFlow()
 
     // Master list from repository
     private val masterCardsFlow: Flow<List<Flashcard>> = repository.getAllCards()
@@ -51,7 +85,7 @@ class CardManagementViewModel(
         _selectedCardIds,
         _isLoading, // This is the StateFlow<Boolean> for loading state
         _sortMenuExpanded
-    ) { suspend values: Array<*> ->
+    ) { values: Array<*> ->
         val cards = values[0] as List<Flashcard>
         val query = values[1] as String
         val sort = values[2] as SortOption
@@ -153,6 +187,158 @@ class CardManagementViewModel(
     fun setSortMenuExpanded(expanded: Boolean) {
         _sortMenuExpanded.value = expanded
     }
+
+    // Functions to update CreateCardFormState
+    fun updateNewFrenchWord(word: String) {
+        _createCardFormState.update { it.copy(frenchWord = word, frenchWordError = null) }
+    }
+
+    fun updateNewEnglishTranslation(translation: String) {
+        _createCardFormState.update { it.copy(englishTranslation = translation, englishTranslationError = null) }
+    }
+
+    fun updateNewExampleSentence(sentence: String) {
+        _createCardFormState.update { it.copy(exampleSentence = sentence) }
+    }
+
+    fun updateNewNotes(notes: String) {
+        _createCardFormState.update { it.copy(notes = notes) }
+    }
+
+    fun updateNewDifficulty(difficulty: Float) {
+        _createCardFormState.update { it.copy(difficulty = difficulty) }
+    }
+
+    private fun validateNewCardForm(): Boolean {
+        val currentState = _createCardFormState.value
+        var isValid = true
+        if (currentState.frenchWord.isBlank()) {
+            _createCardFormState.update { it.copy(frenchWordError = getApplication<Application>().getString(R.string.french_word_empty_error)) }
+            isValid = false
+        }
+        if (currentState.englishTranslation.isBlank()) {
+            _createCardFormState.update { it.copy(englishTranslationError = getApplication<Application>().getString(R.string.english_translation_empty_error)) }
+            isValid = false
+        }
+        return isValid
+    }
+
+    fun saveNewCard(onSuccess: () -> Unit) {
+        if (validateNewCardForm()) {
+            val formState = _createCardFormState.value
+            val newCard = Flashcard(
+                frenchWord = formState.frenchWord,
+                englishTranslation = formState.englishTranslation,
+                exampleSentence = formState.exampleSentence,
+                notes = formState.notes,
+                difficulty = formState.difficulty.toInt(), // Assuming difficulty is stored as Int in Flashcard
+                creationDate = System.currentTimeMillis(), // Or your preferred way to set creation date
+                nextReviewDate = System.currentTimeMillis() // Or your preferred way to set creation date
+            )
+            createCard(newCard, onSuccess) // createCard already handles repo interaction and analytics
+            resetCreateCardFormState()
+        }
+    }
+
+    fun resetCreateCardFormState() {
+        _createCardFormState.value = CreateCardFormState()
+    }
+
+    // Functions for EditCardFormState
+    fun loadCardForEditing(cardId: Long) {
+        _editCardFormState.update { it.copy(isLoading = true, cardNotFound = false) }
+        viewModelScope.launch {
+            // Try to find the card in the current uiState's displayedCards or masterCardsFlow
+            // Using masterCardsFlow ensures we get the most up-to-date card list.
+            val card = masterCardsFlow.firstOrNull()?.find { it.id == cardId }
+
+            if (card != null) {
+                _editCardFormState.update {
+                    it.copy(
+                        id = card.id,
+                        frenchWord = card.frenchWord,
+                        englishTranslation = card.englishTranslation,
+                        exampleSentence = card.exampleSentence ?: "", // Populate exampleSentence
+                        notes = card.notes ?: "",
+                        difficulty = (card.difficulty ?: 3) - 1f, // Assuming difficulty 1-5 maps to 0f-4f
+                        frenchWordError = null,
+                        englishTranslationError = null,
+                        isLoading = false
+                    )
+                }
+            } else {
+                // Card not found
+                _editCardFormState.update { it.copy(isLoading = false, cardNotFound = true) }
+                // Log error or handle as appropriate
+                // For now, cardNotFound flag is set.
+            }
+        }
+    }
+
+    fun updateEditFrenchWord(word: String) {
+        _editCardFormState.update { it.copy(frenchWord = word, frenchWordError = null) }
+    }
+
+    fun updateEditEnglishTranslation(translation: String) {
+        _editCardFormState.update { it.copy(englishTranslation = translation, englishTranslationError = null) }
+    }
+
+    fun updateEditExampleSentence(sentence: String) { // Added function to update exampleSentence
+        _editCardFormState.update { it.copy(exampleSentence = sentence) }
+    }
+
+    fun updateEditNotes(notes: String) {
+        _editCardFormState.update { it.copy(notes = notes) }
+    }
+
+    fun updateEditDifficulty(difficulty: Float) {
+        _editCardFormState.update { it.copy(difficulty = difficulty) }
+    }
+
+    private fun validateEditCardForm(): Boolean {
+        val currentState = _editCardFormState.value
+        var isValid = true
+        if (currentState.frenchWord.isBlank()) {
+            _editCardFormState.update { it.copy(frenchWordError = getApplication<Application>().getString(R.string.french_word_empty_error)) }
+            isValid = false
+        }
+        if (currentState.englishTranslation.isBlank()) {
+            _editCardFormState.update { it.copy(englishTranslationError = getApplication<Application>().getString(R.string.english_translation_empty_error)) }
+            isValid = false
+        }
+        return isValid
+    }
+
+    fun saveEditedCard(onSuccess: () -> Unit) {
+        if (validateEditCardForm()) {
+            val formState = _editCardFormState.value
+            if (formState.id != null) {
+                // Retrieve the original card to maintain other properties not directly edited in this form
+                viewModelScope.launch {
+                    val originalCard = masterCardsFlow.firstOrNull()?.find { it.id == formState.id }
+                    if (originalCard != null) {
+                        val updatedCard = originalCard.copy(
+                            frenchWord = formState.frenchWord.trim(),
+                            englishTranslation = formState.englishTranslation.trim(),
+                            exampleSentence = formState.exampleSentence.trim().ifEmpty { null }, // Save exampleSentence
+                            notes = formState.notes.trim().ifEmpty { null },
+                            difficulty = formState.difficulty.toInt() + 1 // Convert 0f-4f slider to 1-5
+                        )
+                        updateCard(updatedCard, onSuccess) // updateCard handles repo interaction and analytics
+                        resetEditCardFormState()
+                    } else {
+                        // Handle case where original card is not found, though unlikely if ID is present
+                        _editCardFormState.update { it.copy(cardNotFound = true) }
+                    }
+                }
+            }
+        }
+    }
+
+    fun resetEditCardFormState() {
+        _editCardFormState.value = EditCardFormState()
+    }
+
 }
 // Ensure SortOption enum is defined/accessible. If it was in CardManagementScreen.kt,
 // it should be moved to a common location or duplicated in the ViewModel's package/file

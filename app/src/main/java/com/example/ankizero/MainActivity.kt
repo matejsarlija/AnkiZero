@@ -28,8 +28,10 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text // Renamed M3Text to Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -57,9 +59,9 @@ import com.example.ankizero.ui.card.FlashcardScreen
 import com.example.ankizero.ui.management.CardManagementScreen
 import com.example.ankizero.ui.management.CreateCardScreen
 import com.example.ankizero.ui.management.EditCardScreen
-import com.example.ankizero.ui.management.previewEditFlashcard // For EditCardScreen placeholder if needed
 // Import the constant for channel ID
-import com.example.ankizero.util.workers.STUDY_REMINDERS_CHANNEL_ID
+//import com.example.ankizero.util.workers.STUDY_REMINDERS_CHANNEL_ID
+//import com.example.ankizero.ui.navigation.Screen // Already present but good to ensure
 
 // Using AppBottomNavItem from Navigation.kt (assumed to be updated with correct icons)
 // If Navigation.kt's BottomNavItem is not updated, this might cause issues.
@@ -83,6 +85,9 @@ val appScreenBottomNavItems = listOf( // Renamed to avoid conflict if Navigation
     AppBottomNavItem.OcrScan
 )
 
+val LocalFlashcardRepository = staticCompositionLocalOf<FlashcardRepository> {
+    error("No FlashcardRepository provided")
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -134,9 +139,10 @@ fun AnkiZeroApp(applicationContext: Context, repository: FlashcardRepository) { 
         }
     }
 
-    Scaffold(
-        topBar = { // Adding a simple TopAppBar for the test crash button if needed, or place button directly in Column
-            if (BuildConfig.DEBUG) { // Only show Test Crash button in debug builds
+    CompositionLocalProvider(LocalFlashcardRepository provides repository) { // Wrap NavHost
+        Scaffold(
+            topBar = { // Adding a simple TopAppBar for the test crash button if needed, or place button directly in Column
+                if (BuildConfig.DEBUG) { // Only show Test Crash button in debug builds
                 // This is not ideal for a real topBar, just for quick access
                 // A better place might be a debug drawer or specific debug screen
                 Row(modifier = Modifier.fillMaxWidth().padding(4.dp), horizontalArrangement = Arrangement.Center) {
@@ -184,19 +190,19 @@ fun AnkiZeroApp(applicationContext: Context, repository: FlashcardRepository) { 
         ) {
             composable(Screen.Flashcards) { // Use constant
                 val application = LocalContext.current.applicationContext as Application
-                val viewModel: com.example.ankizero.ui.card.FlashcardViewModel = viewModel(
-                    factory = com.example.ankizero.ui.card.FlashcardViewModelFactory(application)
+                val flashcardRepository = LocalFlashcardRepository.current
+                FlashcardScreen(
+                    application = application,
+                    repository = flashcardRepository
                 )
-                FlashcardScreen(viewModel = viewModel)
             }
 
             composable(Screen.Management) { // Use constant
                 val application = LocalContext.current.applicationContext as Application
-                val viewModel: com.example.ankizero.ui.management.CardManagementViewModel = viewModel(
-                    factory = com.example.ankizero.ui.management.CardManagementViewModelFactory(application)
-                )
+                val flashcardRepository = LocalFlashcardRepository.current
                 CardManagementScreen(
-                    viewModel = viewModel,
+                    application = application,
+                    repository = flashcardRepository,
                     // Pass navigation actions using NavController and Screen constants
                     onNavigateToCreateCard = { navController.navigate(Screen.CreateCard) },
                     onNavigateToEditCard = { cardId ->
@@ -223,12 +229,8 @@ fun AnkiZeroApp(applicationContext: Context, repository: FlashcardRepository) { 
                 // This direct collection and find might be problematic if the list isn't ready.
                 // For now, we'll pass a placeholder as per subtask, but this needs proper ViewModel handling.
                 EditCardScreen(
-                    // card = card, // This was from original; our EditCardScreen expects cardToEdit
-                    cardToEdit = previewEditFlashcard.copy(id = cardId), // Placeholder for now
+                    cardId = cardId,
                     onNavigateBack = { navController.popBackStack() }
-                    // onSave = { updated -> viewModel.updateCard(updated) { navController.popBackStack() } },
-                    // onCancel = { navController.popBackStack() }
-                    // The EditCardScreen I created uses onNavigateBack.
                 )
             }
 
@@ -237,7 +239,11 @@ fun AnkiZeroApp(applicationContext: Context, repository: FlashcardRepository) { 
                 // val viewModel: com.example.ankizero.ui.management.CardManagementViewModel = viewModel(...)
                 // CreateCardScreen(onSave = { nc -> viewModel.createCard(nc) {navController.popBackStack()} }, onCancel = {...})
                 // My CreateCardScreen uses onNavigateBack.
+                val application = LocalContext.current.applicationContext as Application
+                val flashcardRepository = LocalFlashcardRepository.current
                 CreateCardScreen(
+                    application = application,
+                    repository = flashcardRepository,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
@@ -245,7 +251,7 @@ fun AnkiZeroApp(applicationContext: Context, repository: FlashcardRepository) { 
             // Removed "notifications" route as it's not in the main scope of this task
         }
     }
-}
+}}
 
 // Removed local NavItem data class as AppBottomNavItem is used.
 // data class NavItem(val route: String, val icon: ImageVector, val label: String)

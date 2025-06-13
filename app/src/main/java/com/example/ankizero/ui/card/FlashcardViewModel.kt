@@ -9,16 +9,30 @@ import com.example.ankizero.data.repository.FlashcardRepository
 import com.example.ankizero.util.AnalyticsHelper
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import kotlin.math.max
-import kotlin.math.min
-import kotlin.math.roundToInt
+import kotlin.random.Random
+
+// Removed: import kotlin.collections.shuffled - this is redundant
+private const val MINIMUM_CARDS_FOR_REVIEW = 2
+// import kotlin.math.max // No longer used
+// import kotlin.math.min // No longer used
+// import kotlin.math.roundToInt // Not used after refactor
+
+enum class ReviewMode {
+    NONE, // No review active, or no cards due initially
+    NORMAL, // Reviewing normally due cards
+    MANUAL  // Reviewing all cards manually
+}
 
 // This is the UiState that FlashcardScreen.kt was designed to work with
 data class FlashcardUiState(
     val currentCard: Flashcard? = null,
     val progressText: String = "",
-    val isDeckEmpty: Boolean = false,
-    val showFlipHint: Boolean = true // To control initial flip hint visibility
+    val isDeckEmpty: Boolean = false, // True if no cards for the current mode, or no cards at all
+    val showFlipHint: Boolean = true, // To control initial flip hint visibility
+    val dueCardsList: List<Flashcard> = emptyList(),
+    val currentCardIndex: Int = 0,
+    val reviewMode: ReviewMode = ReviewMode.NONE,
+    val reviewJustCompleted: Boolean = false // New field
 )
 
 // Changed to AndroidViewModel to get Application context
@@ -30,92 +44,219 @@ class FlashcardViewModel(
     private val _uiState = MutableStateFlow(FlashcardUiState())
     val uiState: StateFlow<FlashcardUiState> = _uiState.asStateFlow()
 
-    private var dueCardsList: List<Flashcard> = emptyList()
-    private var currentCardIndex = 0
+    // private var dueCardsList: List<Flashcard> = emptyList() // Moved to UiState
+    // private var currentCardIndex = 0 // Moved to UiState
+    // private var currentCardIndex = 0 // Moved to UiState
     private var cardsReviewedThisSession = 0 // Counter for analytics
     private var sessionStartTime = System.currentTimeMillis() // For session duration
 
+    // Add this StateFlow to trigger refresh
+    private val refreshTrigger = MutableStateFlow(System.currentTimeMillis())
+
     init {
-        loadDueCardsFromRepository()
-    }
-
-    private fun loadDueCardsFromRepository() {
         viewModelScope.launch {
-            repository.getDueCards() // Assumes getDueCards() correctly fetches for 'today'
-                .collectLatest { cards ->
-                    dueCardsList = cards.shuffled() // Shuffle for variety
-                    cardsReviewedThisSession = 0 // Reset counter for new batch of cards
-                    sessionStartTime = System.currentTimeMillis() // Reset session start time
-                    updateUiWithCurrentCard()
+            // Use flatMapLatest with the trigger
+            refreshTrigger.flatMapLatest { triggeredTime ->
+                // Log when we are fetching with a new time trigger.
+                // android.util.Log.d("FlashcardViewModel", "Refreshing due cards with time: $triggeredTime")
+                // When refresh is triggered, we default to loading due cards (normal review)
+                repository.getDueCards()
+            }.collectLatest { cards ->
+                val shuffledCards = cards.shuffled() // Fixed: Use consistent shuffled() call
+                // Reset session counters if the set of card IDs has changed.
+                // This should happen when the mode or the actual list of cards changes significantly.
+                val oldIds = _uiState.value.dueCardsList.map { it.id }.toSet()
+                val newIds = shuffledCards.map { it.id }.toSet()
+                if (oldIds != newIds) {
+                    cardsReviewedThisSession = 0
+                    sessionStartTime = System.currentTimeMillis()
                 }
+
+                if (shuffledCards.size < MINIMUM_CARDS_FOR_REVIEW && shuffledCards.isNotEmpty()) { // Added isNotEmpty check
+                    _uiState.update { currentState ->
+                        currentState.copy(
+                            currentCard = null,
+                            progressText = "Add at least $MINIMUM_CARDS_FOR_REVIEW cards to start a review.",
+                            isDeckEmpty = true,
+                            reviewMode = ReviewMode.NONE,
+                            dueCardsList = emptyList(), // Clear due cards list
+                            currentCardIndex = 0, // Reset index
+                            reviewJustCompleted = false
+                        )
+                    }
+                } else {
+                    _uiState.update { currentState ->
+                        // Determine reviewMode based on whether cards were found by getDueCards
+                        val newReviewMode = if (shuffledCards.isNotEmpty()) ReviewMode.NORMAL else ReviewMode.NONE
+
+                        var newIndex = 0 // Default to 0
+                    val currentCardId = currentState.currentCard?.id
+
+                    if (shuffledCards.isNotEmpty()) {
+                        if (currentCardId != null && currentState.reviewMode == newReviewMode) { // Preserve index if mode is same
+                            val foundIdx = shuffledCards.indexOfFirst { it.id == currentCardId }
+                            if (foundIdx != -1) {
+                                newIndex = foundIdx
+                            }
+                        }
+                        if (newIndex >= shuffledCards.size) { // Ensure index is valid
+                            newIndex = 0
+                        }
+                    }
+
+                    // Reset session counters if mode changes or card set changes significantly
+                    if (currentState.reviewMode != newReviewMode || oldIds != shuffledCards.map{it.id}.toSet()) {
+                        cardsReviewedThisSession = 0
+                        sessionStartTime = System.currentTimeMillis()
+                    }
+
+                        currentState.copy(
+                            dueCardsList = shuffledCards,
+                            currentCardIndex = newIndex,
+                            currentCard = shuffledCards.getOrNull(newIndex),
+                            progressText = if (shuffledCards.isEmpty()) "No cards due!" else "Card ${newIndex + 1}/${shuffledCards.size}",
+                            isDeckEmpty = shuffledCards.isEmpty(),
+                            reviewMode = newReviewMode,
+                            showFlipHint = (currentState.currentCard?.id != shuffledCards.getOrNull(newIndex)?.id && shuffledCards.isNotEmpty()) || (shuffledCards.isNotEmpty() && newIndex == 0 && cardsReviewedThisSession == 0 && newReviewMode != ReviewMode.NONE),
+                            reviewJustCompleted = false
+                        )
+                    }
+                }
+            }
         }
     }
 
-    private fun updateUiWithCurrentCard() {
-        if (dueCardsList.isEmpty()) {
-            if (cardsReviewedThisSession > 0) { // Log session completed only if cards were reviewed
-                val sessionDurationSeconds = (System.currentTimeMillis() - sessionStartTime) / 1000
-                AnalyticsHelper.logReviewSessionCompleted(getApplication(), cardsReviewedThisSession, sessionDurationSeconds)
-            }
-            _uiState.update {
-                it.copy(
-                    currentCard = null,
-                    progressText = "No cards due!",
-                    isDeckEmpty = true,
-                    showFlipHint = false
-                )
-            }
-        } else {
-            // Ensure index is within bounds, reset if necessary (e.g., after deletion/rating all)
-            if (currentCardIndex !in dueCardsList.indices && dueCardsList.isNotEmpty()) {
-                currentCardIndex = 0 // Or handle completion
-            }
-            _uiState.update {
-                it.copy(
-                    currentCard = dueCardsList.getOrNull(currentCardIndex),
-                    progressText = "Card ${currentCardIndex + 1}/${dueCardsList.size}",
-                    isDeckEmpty = false,
-                    showFlipHint = it.currentCard == null && dueCardsList.isNotEmpty()
-                )
+    fun startManualReview() {
+        viewModelScope.launch {
+            // Fixed: Proper null handling and consistent shuffling
+            val allCardsList: List<Flashcard>? = repository.getAllCards().firstOrNull()
+            val cards = allCardsList?.shuffled() ?: emptyList() // Removed unnecessary Random.Default parameter
+
+            if (cards.size < MINIMUM_CARDS_FOR_REVIEW) {
+                _uiState.update {
+                    it.copy(
+                        currentCard = null,
+                        progressText = "Not enough cards in your deck to start a review. Add at least $MINIMUM_CARDS_FOR_REVIEW cards.",
+                        isDeckEmpty = true,
+                        reviewMode = ReviewMode.NONE,
+                        dueCardsList = emptyList(),
+                        currentCardIndex = 0,
+                        reviewJustCompleted = false
+                    )
+                }
+            } else {
+                cardsReviewedThisSession = 0
+                sessionStartTime = System.currentTimeMillis()
+
+                _uiState.update {
+                    it.copy(
+                        dueCardsList = cards,
+                        currentCardIndex = 0,
+                        currentCard = cards.getOrNull(0),
+                        progressText = if (cards.isEmpty()) "No cards in deck." else "Card 1/${cards.size}",
+                        isDeckEmpty = cards.isEmpty(),
+                        reviewMode = ReviewMode.MANUAL,
+                        showFlipHint = cards.isNotEmpty(), // Show hint if manual review starts with cards
+                        reviewJustCompleted = false
+                    )
+                }
             }
         }
     }
+
+    // loadDueCardsFromRepository is removed as its logic is in init's collectLatest
+    // updateUiWithCurrentCard is removed as its logic is in init's collectLatest
 
 
     fun processCardRating(isMemorized: Boolean) {
-        val cardToProcess = uiState.value.currentCard ?: return
+        val uiStateAtCallTime = _uiState.value // Capture state when function is called
+        val cardToProcess = uiStateAtCallTime.currentCard ?: return
 
         viewModelScope.launch {
-            val updatedCard = repository.processReview(cardToProcess, isMemorized)
-            AnalyticsHelper.logCardReviewed(getApplication(), updatedCard.id, isMemorized)
-            cardsReviewedThisSession++ // Increment reviewed cards counter
+            repository.processReview(cardToProcess, isMemorized)
+            AnalyticsHelper.logCardReviewed(getApplication(), cardToProcess.id, isMemorized)
+            cardsReviewedThisSession++
 
-            dueCardsList = dueCardsList.filterNot { it.id == updatedCard.id }
-            if (currentCardIndex >= dueCardsList.size && dueCardsList.isNotEmpty()) {
-                 currentCardIndex = dueCardsList.size - 1
+            _uiState.update { currentStateOnUpdate -> // Current state at the moment of update
+                val listRelatedToProcessedCard = uiStateAtCallTime.dueCardsList
+                val listWithoutProcessedCard = listRelatedToProcessedCard.filterNot { it.id == cardToProcess.id }
+
+                if (listWithoutProcessedCard.isEmpty()) {
+                    // This was the last card
+                    if (cardsReviewedThisSession > 0) {
+                        val sessionDurationSeconds = (System.currentTimeMillis() - sessionStartTime) / 1000
+                        AnalyticsHelper.logReviewSessionCompleted(getApplication(), cardsReviewedThisSession, sessionDurationSeconds)
+                    }
+                    currentStateOnUpdate.copy(
+                        currentCard = null,
+                        dueCardsList = emptyList(),
+                        currentCardIndex = 0,
+                        progressText = "Review complete!",
+                        isDeckEmpty = true,
+                        reviewMode = ReviewMode.NONE,
+                        reviewJustCompleted = true,
+                        showFlipHint = false
+                    )
+                } else {
+                    // There are more cards.
+                    // Calculate newIndex: if we're not at the last position, stay at same index
+                    // (because removing current card shifts everything left)
+                    // If we were at the last position, wrap to 0
+                    val oldIndex = uiStateAtCallTime.currentCardIndex
+                    val newIndex = if (oldIndex >= listWithoutProcessedCard.size) {
+                        // We were at or beyond the last item, wrap to beginning
+                        0
+                    } else {
+                        // Stay at the same index - the "next" card has now shifted into this position
+                        oldIndex
+                    }
+
+                    currentStateOnUpdate.copy(
+                        dueCardsList = listWithoutProcessedCard,
+                        currentCard = listWithoutProcessedCard.getOrNull(newIndex),
+                        currentCardIndex = newIndex,
+                        isDeckEmpty = false,
+                        reviewMode = uiStateAtCallTime.reviewMode,
+                        reviewJustCompleted = false,
+                        progressText = "Card ${newIndex + 1}/${listWithoutProcessedCard.size}",
+                        showFlipHint = true
+                    )
+                }
             }
-
-            updateUiWithCurrentCard() // This will handle empty list and log session completion
         }
     }
 
     fun showNextCard(moveForward: Boolean = true) {
-        if (dueCardsList.isEmpty()) {
-            updateUiWithCurrentCard() // Update to empty state
-            return
-        }
+        _uiState.update { currentState ->
+            if (currentState.dueCardsList.isEmpty()) {
+                return@update currentState // No change if deck is empty
+            }
 
-        if (moveForward) {
-            currentCardIndex = (currentCardIndex + 1) % dueCardsList.size
-        } else { // Moving backward
-            currentCardIndex = if (currentCardIndex == 0) dueCardsList.size - 1 else currentCardIndex - 1
+            val newIndex = if (moveForward) {
+                (currentState.currentCardIndex + 1) % currentState.dueCardsList.size
+            } else {
+                if (currentState.currentCardIndex == 0) currentState.dueCardsList.size - 1 else currentState.currentCardIndex - 1
+            }
+
+            currentState.copy(
+                currentCardIndex = newIndex,
+                currentCard = currentState.dueCardsList.getOrNull(newIndex),
+                progressText = "Card ${newIndex + 1}/${currentState.dueCardsList.size}",
+                showFlipHint = false // Hide hint on manual navigation
+            )
         }
-        // When navigating, don't show flip hint unless it's a new session logic
-        _uiState.update { it.copy(showFlipHint = false) }
-        updateUiWithCurrentCard()
     }
 
     fun dismissFlipHint() {
         _uiState.update { it.copy(showFlipHint = false) }
+    }
+
+    // Add this public function to be called when the screen is resumed or becomes active
+    fun onResume() {
+        // android.util.Log.d("FlashcardViewModel", "onResume called, triggering refresh.")
+        // Only trigger refresh if not in manual mode, or perhaps always to reset to due cards?
+        // Current behavior: onResume re-fetches due cards, effectively ending manual review.
+        // This might be desired. If not, add a condition: if (_uiState.value.reviewMode != ReviewMode.MANUAL)
+        refreshTrigger.value = System.currentTimeMillis()
     }
 }

@@ -1,23 +1,18 @@
 package com.example.ankizero.ui.management
 
-import android.app.Application // Added
+import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import com.example.ankizero.data.database.AppDatabase
 import com.example.ankizero.data.repository.FlashcardRepository
 
 class CardManagementViewModelFactory(
-    private val application: Application // Added
-    // private val repository: FlashcardRepository // Removed repository from constructor
+    private val application: Application,
+    private val repository: FlashcardRepository
 ) : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(CardManagementViewModel::class.java)) {
-            // Instantiate repository here
-            val database = AppDatabase.getDatabase(application)
-            val flashCardDao = database.flashCardDao()
-            val repository = FlashcardRepository(flashCardDao)
-            @Suppress("UNCHECKED_CAST")
-            return CardManagementViewModel(application, repository) as T // Pass application and new repository
+            return CardManagementViewModel(application, repository) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

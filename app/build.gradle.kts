@@ -46,6 +46,11 @@ android {
         compose = true
         buildConfig = true
     }
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+        }
+    }
 }
 
 dependencies {
@@ -71,12 +76,19 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.androidx.work.runtime.ktx) // Added WorkManager
+    implementation(libs.androidx.datastore.preferences) // Added DataStore
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test) // Added
     testImplementation(libs.mockito.core) // Added Mockito
+    testImplementation(libs.mockk) // Added MockK
+    testImplementation(libs.kotlin.test.junit)
+    testImplementation(libs.mockito.kotlin)
+    testImplementation(libs.androidx.ui.test.junit4)
+    testImplementation("org.robolectric:robolectric:4.11.1")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation("androidx.test.espresso:espresso-intents:3.5.1")
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)

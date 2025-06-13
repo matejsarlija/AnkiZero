@@ -10,162 +10,168 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource // Added
-import androidx.compose.ui.tooling.preview.Preview
+import android.app.Application // Added
+import androidx.compose.ui.platform.LocalContext // Added
+import androidx.compose.ui.res.stringResource
+// import androidx.compose.ui.tooling.preview.Preview // Preview removed
 import androidx.compose.ui.unit.dp
-import com.example.ankizero.data.entity.Flashcard
-import com.example.ankizero.R // Added
-import java.time.LocalDate
-import java.time.ZoneOffset
+import androidx.lifecycle.viewmodel.compose.viewModel
+// import com.example.ankizero.data.entity.Flashcard // No longer directly manipulating Flashcard entity here
+import com.example.ankizero.R
+import com.example.ankizero.LocalFlashcardRepository // Added
+// import kotlinx.coroutines.launch // Not directly needed for snackbar, can be handled by VM or navigation callback
 import kotlin.math.roundToInt
-
-// Placeholder for preview and initial state
-val previewEditFlashcard = Flashcard(
-    id = 1L,
-    frenchWord = "Bonjour",
-    englishTranslation = "Hello",
-    // pronunciation = "bon-zhoor", // Removed as per error analysis
-    // example = "Bonjour, comment ça va?", // Removed as per error analysis
-    notes = "Common greeting.",
-    difficulty = 3, // Assuming 1-5
-    creationDate = LocalDate.now().minusDays(10).atStartOfDay().toEpochSecond(ZoneOffset.UTC),
-    nextReviewDate = LocalDate.now().plusDays(2).atStartOfDay().toEpochSecond(ZoneOffset.UTC)
-    // easeFactor = 2.5f, // Removed as per error analysis (screen doesn't use it, Flashcard might not have it)
-    // interval = 5 // Removed as per error analysis (screen doesn't use it, Flashcard might not have it)
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditCardScreen(
-    // cardId: Long, // In a real scenario, you'd pass ID and fetch the card via ViewModel
-    // For this UI task, we'll pass a full Flashcard object for simplicity as per MainActivity setup
-    cardToEdit: Flashcard, // Assuming this Flashcard object might not have pronunciation, example, etc.
-    onNavigateBack: () -> Unit
-    // onUpdateCard: (Flashcard) -> Unit // To be used when ViewModel is integrated
+    cardId: Long,
+    onNavigateBack: () -> Unit,
+    // viewModel: CardManagementViewModel = viewModel() // Old way
 ) {
-    var frenchWord by remember { mutableStateOf(cardToEdit.frenchWord) }
-    var englishTranslation by remember { mutableStateOf(cardToEdit.englishTranslation) }
-    // var pronunciation by remember { mutableStateOf(cardToEdit.pronunciation ?: "") } // Removed
-    // var exampleSentence by remember { mutableStateOf(cardToEdit.example ?: "") } // Removed
-    var notes by remember { mutableStateOf(cardToEdit.notes ?: "") }
-    // Difficulty: Slider 0f-4f maps to 1-5. So, (difficulty - 1) for slider.
-    var difficultySliderValue by remember { mutableStateOf((cardToEdit.difficulty ?: 3).toFloat() - 1) }
+    val application = LocalContext.current.applicationContext as Application
+    val flashcardRepository = LocalFlashcardRepository.current // Access using the correct import
+    val viewModel: CardManagementViewModel = viewModel(
+        factory = CardManagementViewModelFactory(application, flashcardRepository)
+    )
+    val editCardFormState by viewModel.editCardFormState.collectAsState()
 
+    // val snackbarHostState = remember { SnackbarHostState() } // Keep if snackbar shown from here
+    // val scope = rememberCoroutineScope() // Keep if snackbar shown from here
 
-    var frenchWordError by remember { mutableStateOf<String?>(null) }
-    var englishTranslationError by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(cardId, viewModel) {
+        viewModel.loadCardForEditing(cardId)
+    }
 
-    val snackbarHostState = remember { SnackbarHostState() }
-
-    fun validateFields(): Boolean {
-        frenchWordError = if (frenchWord.isBlank()) "French word cannot be empty" else null
-        englishTranslationError = if (englishTranslation.isBlank()) "English translation cannot be empty" else null
-        return frenchWordError == null && englishTranslationError == null
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.resetEditCardFormState()
+        }
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        // snackbarHost = { SnackbarHost(snackbarHostState) }, // Keep or remove based on snackbar handling
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(id = R.string.edit_card_screen_title)) }, // Updated
+                title = { Text(stringResource(id = R.string.edit_card_screen_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = stringResource(id = R.string.back_cd))  // Updated
+                        Icon(Icons.Filled.ArrowBack, contentDescription = stringResource(id = R.string.back_cd))
                     }
                 },
                 actions = {
-                    IconButton(onClick = {
-                        if (validateFields()) {
-                            // ... card update ...
-                            onNavigateBack()
-                        }
-                    }) {
-                        Icon(Icons.Filled.Done, contentDescription = stringResource(id = R.string.save_changes_to_card_cd)) // Updated
+                    IconButton(
+                        onClick = {
+                            viewModel.saveEditedCard {
+                                // Assuming onNavigateBack is the onSuccess action
+                                onNavigateBack()
+                                // If snackbar needs to be shown, it should be triggered here or by listening to a state from VM
+                                // scope.launch {
+                                //     snackbarHostState.showSnackbar(message = stringResource(id = R.string.card_updated_successfully))
+                                // }
+                            }
+                        },
+                        enabled = editCardFormState.id != null && !editCardFormState.isLoading // Enable if card is loaded
+                    ) {
+                        Icon(Icons.Filled.Done, contentDescription = stringResource(id = R.string.save_changes_to_card_cd))
                     }
                 }
             )
         }
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .padding(paddingValues)
-                .padding(16.dp)
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState()) // Make form scrollable
-        ) {
-            OutlinedTextField(
-                value = frenchWord,
-                onValueChange = { frenchWord = it; frenchWordError = null },
-                label = { Text("French Word*") },
-                modifier = Modifier.fillMaxWidth(),
-                isError = frenchWordError != null,
-                singleLine = true
-            )
-            if (frenchWordError != null) {
-                Text(frenchWordError!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        when {
+            editCardFormState.isLoading -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
             }
-            Spacer(modifier = Modifier.height(12.dp))
-
-            OutlinedTextField(
-                value = englishTranslation,
-                onValueChange = { englishTranslation = it; englishTranslationError = null },
-                label = { Text("English Translation*") },
-                modifier = Modifier.fillMaxWidth(),
-                isError = englishTranslationError != null,
-                singleLine = true
-            )
-            if (englishTranslationError != null) {
-                Text(englishTranslationError!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            editCardFormState.cardNotFound -> {
+                Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
+                    Text(
+                        stringResource(id = R.string.card_not_found_error), // Ensure this string resource exists
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
             }
-            Spacer(modifier = Modifier.height(16.dp))
+            editCardFormState.id != null -> {
+                Column(
+                    modifier = Modifier
+                        .padding(paddingValues)
+                        .padding(16.dp)
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    OutlinedTextField(
+                        value = editCardFormState.frenchWord,
+                        onValueChange = { viewModel.updateEditFrenchWord(it) },
+                        label = { Text("French Word*") },
+                        modifier = Modifier.fillMaxWidth(),
+                        isError = editCardFormState.frenchWordError != null,
+                        singleLine = true
+                    )
+                    if (editCardFormState.frenchWordError != null) {
+                        Text(editCardFormState.frenchWordError!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
 
-            Text("Optional Fields", style = MaterialTheme.typography.titleSmall)
-            Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = editCardFormState.englishTranslation,
+                        onValueChange = { viewModel.updateEditEnglishTranslation(it) },
+                        label = { Text("English Translation*") },
+                        modifier = Modifier.fillMaxWidth(),
+                        isError = editCardFormState.englishTranslationError != null,
+                        singleLine = true
+                    )
+                    if (editCardFormState.englishTranslationError != null) {
+                        Text(editCardFormState.englishTranslationError!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
 
-            // OutlinedTextField for pronunciation removed
-            // Spacer(modifier = Modifier.height(12.dp)) // Removed corresponding spacer
+                    Text("Optional Fields", style = MaterialTheme.typography.titleSmall)
+                    Spacer(modifier = Modifier.height(8.dp))
 
-            // OutlinedTextField for exampleSentence removed
-            // Spacer(modifier = Modifier.height(12.dp)) // Removed corresponding spacer
+                    OutlinedTextField(
+                        value = editCardFormState.exampleSentence,
+                        onValueChange = { viewModel.updateEditExampleSentence(it) },
+                        label = { Text("Example Sentence") },
+                        modifier = Modifier.fillMaxWidth(),
+                        maxLines = 3
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
 
-            OutlinedTextField(
-                value = notes,
-                onValueChange = { notes = it },
-                label = { Text("Notes") },
-                modifier = Modifier.fillMaxWidth(),
-                maxLines = 5
-            )
-            Spacer(modifier = Modifier.height(16.dp))
+                    OutlinedTextField(
+                        value = editCardFormState.notes,
+                        onValueChange = { viewModel.updateEditNotes(it) },
+                        label = { Text("Notes") },
+                        modifier = Modifier.fillMaxWidth(),
+                        maxLines = 5
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
 
-            Text("Difficulty (1-5)", style = MaterialTheme.typography.bodyMedium)
-            Slider(
-                value = difficultySliderValue,
-                onValueChange = { difficultySliderValue = it },
-                valueRange = 0f..4f, // Represents 1 to 5
-                steps = 3, // 0, 1, 2, 3, 4 (5 steps)
-                modifier = Modifier.fillMaxWidth()
-            )
-            Text(
-                text = "Selected: ${(difficultySliderValue.roundToInt() + 1)}",
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.align(Alignment.End)
-            )
+                    Text("Difficulty (1-5)", style = MaterialTheme.typography.bodyMedium)
+                    Slider(
+                        value = editCardFormState.difficulty,
+                        onValueChange = { viewModel.updateEditDifficulty(it) },
+                        valueRange = 0f..4f, // Represents 1 to 5
+                        steps = 3, // 0, 1, 2, 3, 4 (5 steps)
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Text(
+                        text = "Selected: ${(editCardFormState.difficulty.roundToInt() + 1)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.align(Alignment.End)
+                    )
+                }
+            }
+            // Optionally, handle the case where id is null but not loading and not cardNotFound (e.g. initial state before load)
+            else -> {
+                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Loading card details...") // Or some other placeholder
+                }
+            }
         }
     }
 }
 
-@Preview(showBackground = true, name = "Edit Card Screen - Light")
-@Composable
-fun EditCardScreenPreviewLight() {
-    MaterialTheme(colorScheme = lightColorScheme()) {
-        EditCardScreen(cardToEdit = previewEditFlashcard, onNavigateBack = {})
-    }
-}
-
-@Preview(showBackground = true, name = "Edit Card Screen - Dark")
-@Composable
-fun EditCardScreenPreviewDark() {
-    MaterialTheme(colorScheme = darkColorScheme()) {
-        EditCardScreen(cardToEdit = previewEditFlashcard, onNavigateBack = {})
-    }
-}
+// Preview functions are typically removed for production code.
