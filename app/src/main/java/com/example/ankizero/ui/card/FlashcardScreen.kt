@@ -50,6 +50,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import kotlin.math.abs
 import kotlin.random.Random
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.unit.Dp
+
+// For coroutines delay
+import kotlinx.coroutines.delay
+
+// Additional drawing utilities (if not already imported)
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 
 @Composable
 fun FlashcardScreen(
@@ -382,7 +394,8 @@ fun FlashcardView(
     var flipped by remember { mutableStateOf(false) }
     var dragOffsetX by remember { mutableFloatStateOf(0f) }
     val isDark = isSystemInDarkTheme()
-    // Removed diagonal grid - keeping it simple with straight lines
+    var revealedLetterCount by remember(frontText, flipped) { mutableStateOf(0) }
+    val isDiagonalGrid by remember(frontText) { mutableStateOf(Random.nextBoolean()) }
 
     // Enhanced flip animation with spring
     val animatedRotationY by animateFloatAsState(
@@ -394,16 +407,27 @@ fun FlashcardView(
         label = "rotationY"
     )
 
+    // Simplified letter reveal effect - only when showing front
+    LaunchedEffect(frontText, flipped) {
+        if (!flipped) {
+            revealedLetterCount = 0
+            for (i in frontText.indices) {
+                delay(80L)
+                if (!flipped) { // Check if still on front
+                    revealedLetterCount = i + 1
+                } else {
+                    break
+                }
+            }
+        }
+    }
+
     // Dynamic card colors based on drag
     val dragProgress = (abs(dragOffsetX) / 300f).coerceIn(0f, 1f)
     val cardColor by animateColorAsState(
         targetValue = when {
             dragOffsetX > 50f -> if (isDark) SuccessGreenDark.copy(alpha = 0.3f) else SuccessGreen.copy(alpha = 0.2f)
             dragOffsetX < -50f -> if (isDark) RetryRedDark.copy(alpha = 0.3f) else RetryRed.copy(alpha = 0.2f)
-            // Ensure CardSurfaceLight is used here, assuming it's opaque white for light theme as per earlier discussions.
-            // If my previous change to CardSurfaceLight.copy(alpha=1f) was in this code block, that should be reverted if this code is a full replacement.
-            // The user's provided code had 'else -> if (isDark) CardSurfaceDark.copy(alpha = 0.9f) else CardSurfaceLight'
-            // This should be maintained.
             else -> if (isDark) CardSurfaceDark.copy(alpha = 0.9f) else CardSurfaceLight
         },
         animationSpec = tween(200),
@@ -429,8 +453,8 @@ fun FlashcardView(
             .graphicsLayer {
                 this.rotationY = animatedRotationY
                 this.cameraDistance = 16f * density
-                this.translationX = dragOffsetX * 0.8f // Slightly dampened movement
-                this.scaleX = 1f - (dragProgress * 0.05f) // Subtle scale effect
+                this.translationX = dragOffsetX * 0.8f
+                this.scaleX = 1f - (dragProgress * 0.05f)
                 this.scaleY = 1f - (dragProgress * 0.05f)
             }
             .clickable {
@@ -458,50 +482,77 @@ fun FlashcardView(
         shape = RoundedCornerShape(24.dp)
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .drawBehind {
-                    // MODIFICATION 1: Change alpha of lineColor
-                    val lineColor = TextTertiary.copy(alpha = 0.3f) // Changed from 0.5f
-                    val strokeWidthPx = 1.dp.toPx()
-                    // MODIFICATION 2: Change dp value for gridSizePx
-                    val gridSizePx = 42.dp.toPx() // Changed from 20.dp
-
-                    val drawLines = {
-                        // Use the actual card size bounds - no extension needed
-                        val cardWidth = size.width
-                        val cardHeight = size.height
-
-                        // Vertical lines - stay within card bounds
-                        var currentX = 0f
-                        while (currentX <= cardWidth) {
-                            drawLine(
-                                color = lineColor,
-                                start = androidx.compose.ui.geometry.Offset(currentX, 0f),
-                                end = androidx.compose.ui.geometry.Offset(currentX, cardHeight),
-                                strokeWidth = strokeWidthPx
-                            )
-                            currentX += gridSizePx
-                        }
-
-                        // Horizontal lines - stay within card bounds
-                        var currentY = 0f
-                        while (currentY <= cardHeight) {
-                            drawLine(
-                                color = lineColor,
-                                start = androidx.compose.ui.geometry.Offset(0f, currentY),
-                                end = androidx.compose.ui.geometry.Offset(cardWidth, currentY),
-                                strokeWidth = strokeWidthPx
-                            )
-                            currentY += gridSizePx
-                        }
-                    }
-
-                    // Always draw clean straight grid lines
-                    drawLines()
-                },
+            modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
+            // Paper grid background - INSIDE the card
+            Canvas(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(24.dp)) // Ensure grid stays within card bounds
+            ) {
+                val lineColor = if (isDark)
+                    androidx.compose.ui.graphics.Color.White.copy(alpha = 0.1f)
+                else
+                    androidx.compose.ui.graphics.Color.Gray.copy(alpha = 0.2f)
+                val strokeWidthPx = 0.5.dp.toPx()
+                val gridSizePx = 20.dp.toPx()
+
+                if (isDiagonalGrid) {
+                    // Rotate canvas for diagonal grid
+                    rotate(degrees = 15f, pivot = center) {
+                        // Draw vertical lines
+                        var x = -size.width
+                        while (x < size.width * 2) {
+                            drawLine(
+                                color = lineColor,
+                                start = Offset(x, -size.height),
+                                end = Offset(x, size.height * 2),
+                                strokeWidth = strokeWidthPx
+                            )
+                            x += gridSizePx
+                        }
+
+                        // Draw horizontal lines
+                        var y = -size.height
+                        while (y < size.height * 2) {
+                            drawLine(
+                                color = lineColor,
+                                start = Offset(-size.width, y),
+                                end = Offset(size.width * 2, y),
+                                strokeWidth = strokeWidthPx
+                            )
+                            y += gridSizePx
+                        }
+                    }
+                } else {
+                    // Draw regular grid
+                    // Vertical lines
+                    var x = 0f
+                    while (x < size.width) {
+                        drawLine(
+                            color = lineColor,
+                            start = Offset(x, 0f),
+                            end = Offset(x, size.height),
+                            strokeWidth = strokeWidthPx
+                        )
+                        x += gridSizePx
+                    }
+
+                    // Horizontal lines
+                    var y = 0f
+                    while (y < size.height) {
+                        drawLine(
+                            color = lineColor,
+                            start = Offset(0f, y),
+                            end = Offset(size.width, y),
+                            strokeWidth = strokeWidthPx
+                        )
+                        y += gridSizePx
+                    }
+                }
+            }
+
             // Subtle gradient overlay
             Box(
                 modifier = Modifier
@@ -519,22 +570,51 @@ fun FlashcardView(
 
             // Card content
             if (animatedRotationY <= 90f || animatedRotationY >= 270f) {
-                // Front side
-                Text(
-                    text = frontText,
-                    style = MaterialTheme.typography.headlineMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.5.sp
-                    ),
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurface,
+                // Front side with letter animation
+                Row(
                     modifier = Modifier
                         .padding(24.dp)
                         .graphicsLayer { rotationY = 0f }
-                        .testTag("CardFrontText")
-                )
+                        .testTag("CardFrontText"),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    frontText.forEachIndexed { index, char ->
+                        val isVisible = index < revealedLetterCount
+                        val charAlpha by animateFloatAsState(
+                            targetValue = if (isVisible) 1f else 0f,
+                            animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+                            label = "charAlpha_$index"
+                        )
+                        val charScale by animateFloatAsState(
+                            targetValue = if (isVisible) 1f else 0.3f,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessLow
+                            ),
+                            label = "charScale_$index"
+                        )
+
+                        Text(
+                            text = char.toString(),
+                            style = MaterialTheme.typography.headlineMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.5.sp
+                            ),
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier
+                                .testTag("CharacterBoxFront-$index")
+                                .graphicsLayer {
+                                    alpha = charAlpha
+                                    scaleX = charScale
+                                    scaleY = charScale
+                                }
+                        )
+                    }
+                }
             } else {
-                // Back side
+                // Back side - static text
                 Text(
                     text = backText,
                     style = MaterialTheme.typography.headlineSmall.copy(
