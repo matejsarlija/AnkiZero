@@ -266,7 +266,7 @@ fun StyledFlashcardViewPreview() {
     MaterialTheme {
         FlashcardView(
             frontText = "Graph Paper Card",
-            backText = "With random lines & letter spacing",
+            backText = "With straight grid lines",
             onSwipeLeft = { },
             onSwipeRight = { }
         )
@@ -279,7 +279,7 @@ fun StyledFlashcardViewDarkPreview() {
     MaterialTheme(colorScheme = darkColorScheme()) {
         FlashcardView(
             frontText = "Graph Paper Card (Dark)",
-            backText = "Random lines & letter spacing",
+            backText = "Straight grid lines",
             onSwipeLeft = { },
             onSwipeRight = { }
         )
@@ -395,7 +395,6 @@ fun FlashcardView(
     var dragOffsetX by remember { mutableFloatStateOf(0f) }
     val isDark = isSystemInDarkTheme()
     var revealedLetterCount by remember(frontText, flipped) { mutableStateOf(0) }
-    val isDiagonalGrid by remember(frontText) { mutableStateOf(Random.nextBoolean()) }
 
     // Enhanced flip animation with spring
     val animatedRotationY by animateFloatAsState(
@@ -485,7 +484,7 @@ fun FlashcardView(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            // Paper grid background - INSIDE the card
+            // Paper grid background - INSIDE the card (STRAIGHT GRID ONLY)
             Canvas(
                 modifier = Modifier
                     .fillMaxSize()
@@ -498,58 +497,29 @@ fun FlashcardView(
                 val strokeWidthPx = 0.5.dp.toPx()
                 val gridSizePx = 20.dp.toPx()
 
-                if (isDiagonalGrid) {
-                    // Rotate canvas for diagonal grid
-                    rotate(degrees = 15f, pivot = center) {
-                        // Draw vertical lines
-                        var x = -size.width
-                        while (x < size.width * 2) {
-                            drawLine(
-                                color = lineColor,
-                                start = Offset(x, -size.height),
-                                end = Offset(x, size.height * 2),
-                                strokeWidth = strokeWidthPx
-                            )
-                            x += gridSizePx
-                        }
+                // Draw regular straight grid only
+                // Vertical lines
+                var x = 0f
+                while (x < size.width) {
+                    drawLine(
+                        color = lineColor,
+                        start = Offset(x, 0f),
+                        end = Offset(x, size.height),
+                        strokeWidth = strokeWidthPx
+                    )
+                    x += gridSizePx
+                }
 
-                        // Draw horizontal lines
-                        var y = -size.height
-                        while (y < size.height * 2) {
-                            drawLine(
-                                color = lineColor,
-                                start = Offset(-size.width, y),
-                                end = Offset(size.width * 2, y),
-                                strokeWidth = strokeWidthPx
-                            )
-                            y += gridSizePx
-                        }
-                    }
-                } else {
-                    // Draw regular grid
-                    // Vertical lines
-                    var x = 0f
-                    while (x < size.width) {
-                        drawLine(
-                            color = lineColor,
-                            start = Offset(x, 0f),
-                            end = Offset(x, size.height),
-                            strokeWidth = strokeWidthPx
-                        )
-                        x += gridSizePx
-                    }
-
-                    // Horizontal lines
-                    var y = 0f
-                    while (y < size.height) {
-                        drawLine(
-                            color = lineColor,
-                            start = Offset(0f, y),
-                            end = Offset(size.width, y),
-                            strokeWidth = strokeWidthPx
-                        )
-                        y += gridSizePx
-                    }
+                // Horizontal lines
+                var y = 0f
+                while (y < size.height) {
+                    drawLine(
+                        color = lineColor,
+                        start = Offset(0f, y),
+                        end = Offset(size.width, y),
+                        strokeWidth = strokeWidthPx
+                    )
+                    y += gridSizePx
                 }
             }
 
