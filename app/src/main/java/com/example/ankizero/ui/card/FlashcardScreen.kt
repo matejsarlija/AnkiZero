@@ -406,7 +406,7 @@ fun FlashcardView(
                 this.scaleY = 1f - (dragProgress * 0.05f)
             }
             .clickable {
-                haptic.performHapticFeedback(HapticFeedbackType.VirtualKey) // Haptic on flip
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) // Haptic on flip
                 flipped = !flipped
             }
             .pointerInput(Unit) {

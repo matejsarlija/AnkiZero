@@ -2,6 +2,7 @@ package com.example.ankizero.ui.shared
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -54,7 +55,7 @@ fun PaperGrid(
 @Composable
 fun PaperGridPreviewLight() {
     AnkiZeroTheme {
-        PaperGrid(modifier = Modifier.matchParentSize())
+        PaperGrid(modifier = Modifier.fillMaxSize())
     }
 }
 
@@ -62,7 +63,7 @@ fun PaperGridPreviewLight() {
 @Composable
 fun PaperGridPreviewDark() {
     AnkiZeroTheme(darkTheme = true) {
-        PaperGrid(modifier = Modifier.matchParentSize())
+        PaperGrid(modifier = Modifier.fillMaxSize())
     }
 }
 
@@ -71,7 +72,7 @@ fun PaperGridPreviewDark() {
 fun PaperGridCustomPreview() {
     AnkiZeroTheme {
         PaperGrid(
-            modifier = Modifier.matchParentSize(),
+            modifier = Modifier.fillMaxSize(),
             lineColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
             gridSize = 30.dp,
             strokeWidth = 1.dp
