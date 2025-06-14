@@ -370,17 +370,29 @@ fun FlashcardView(
     //     }
     // }
 
-    // Dynamic card colors based on drag
-    val dragProgress = (abs(dragOffsetX) / 300f).coerceIn(0f, 1f)
-    val cardColor by animateColorAsState(
-        targetValue = when {
-            dragOffsetX > 50f -> if (isDark) SuccessGreenDark.copy(alpha = 0.3f) else SuccessGreen.copy(alpha = 0.2f)
-            dragOffsetX < -50f -> if (isDark) RetryRedDark.copy(alpha = 0.3f) else RetryRed.copy(alpha = 0.2f)
-            else -> if (isDark) CardSurfaceDark.copy(alpha = 0.9f) else CardSurfaceLight
-        },
-        animationSpec = tween(200),
-        label = "cardColor"
+    // Define the brushed metal gradient for the card
+    val cardMetalGradient = Brush.verticalGradient(
+        colors = listOf(
+            Color(0xFFD8D8D8), // Lighter top
+            Color(0xFFC0C0C0), // Mid-light
+            Color(0xFFA8A8A8), // Mid
+            Color(0xFFB0B0B0), // Mid-dark
+            Color(0xFFC8C8C8)  // Lighter bottom
+        )
     )
+
+    // Dynamic card colors based on drag - Commented out for brushed metal effect
+    // val dragProgress = (abs(dragOffsetX) / 300f).coerceIn(0f, 1f)
+    // val cardColor by animateColorAsState(
+    //     targetValue = when {
+    //         dragOffsetX > 50f -> if (isDark) SuccessGreenDark.copy(alpha = 0.3f) else SuccessGreen.copy(alpha = 0.2f)
+    //         dragOffsetX < -50f -> if (isDark) RetryRedDark.copy(alpha = 0.3f) else RetryRed.copy(alpha = 0.2f)
+    //         else -> if (isDark) CardSurfaceDark.copy(alpha = 0.9f) else CardSurfaceLight
+    //     },
+    //     animationSpec = tween(200),
+    //     label = "cardColor"
+    // )
+    val dragProgress = (abs(dragOffsetX) / 300f).coerceIn(0f, 1f) // Keep for scale effect if needed
 
     // Enhanced shadow and elevation
     val cardElevation by animateFloatAsState(
@@ -398,6 +410,7 @@ fun FlashcardView(
                 shape = RoundedCornerShape(24.dp),
                 spotColor = if (isDark) ShadowDark.copy(alpha = 0.1f) else ShadowLight.copy(alpha = 0.15f)
             )
+            .background(brush = cardMetalGradient, shape = RoundedCornerShape(24.dp)) // Apply brush here
             .graphicsLayer {
                 this.rotationY = animatedRotationY
                 this.cameraDistance = 16f * density
@@ -433,7 +446,7 @@ fun FlashcardView(
                 )
             },
         elevation = CardDefaults.cardElevation(defaultElevation = cardElevation.dp),
-        colors = CardDefaults.cardColors(containerColor = cardColor),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         shape = RoundedCornerShape(24.dp)
     ) {
         Box(
@@ -457,20 +470,17 @@ fun FlashcardView(
 
             // Card content
             if (animatedRotationY <= 90f || animatedRotationY >= 270f) {
-                // Front side with letter animation
-                AnimatedText(
-                    text = frontText,
-                    isVisible = !flipped, // Show when not flipped
-                    style = MaterialTheme.typography.headlineMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.5.sp,
-                        color = MaterialTheme.colorScheme.onSurface
-                    ),
+                // Front side with flipping letter rectangles
+                FlippingWordRow(
+                    word = frontText,
+                    reveal = !flipped, // Show when not flipped (card front is visible)
                     modifier = Modifier
                         .padding(24.dp)
+                        // Ensure the graphicsLayer here doesn't interfere with FlippingWordRow's own animations.
+                        // It might be better to remove .graphicsLayer { rotationY = 0f } if FlippingWordRow handles its own layout.
+                        // However, the original AnimatedText had it, so keeping it for now unless issues arise.
                         .graphicsLayer { rotationY = 0f }
-                        .testTag("CardFrontAnimatedText"),
-                    testTagPrefix = "CardFrontChar" // Prefix for individual characters
+                        .testTag("CardFrontFlippingWordRow")
                 )
             } else {
                 // Back side - static text
