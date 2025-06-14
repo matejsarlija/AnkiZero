@@ -3,6 +3,7 @@ package com.example.ankizero.ui.shared
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.* // Import all from core
+import androidx.compose.foundation.background // Added import
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -21,11 +22,12 @@ import com.example.ankizero.ui.theme.AnkiZeroTheme
 fun AnimatedCharacter(
     char: Char,
     isVisible: Boolean,
-    modifier: Modifier = Modifier,
-    style: TextStyle = LocalTextStyle.current,
-    animationDelay: Int = 0, // Added for potential staggered animations, though current FlashcardView handles sequence
+    modifier: Modifier = Modifier, // Keep modifier here
+    targetBackgroundColor: Color? = null, // New parameter
     targetColor: Color? = null,
-    triggerPulse: Boolean = false // New parameter
+    triggerPulse: Boolean = false,
+    style: TextStyle = LocalTextStyle.current, // style after specific color/background controls
+    animationDelay: Int = 0
 ) {
     val charAlpha by animateFloatAsState(
         targetValue = if (isVisible) 1f else 0f,
@@ -42,43 +44,55 @@ fun AnimatedCharacter(
         label = "charScale"
     )
 
-    var pulseScale by remember { mutableStateOf(1f) }
+    val pulseScale = remember { Animatable(1f) }
 
     LaunchedEffect(isVisible, triggerPulse) {
         if (isVisible && triggerPulse) {
             // Start the pulse animation
-            animate(
-                initialValue = 1f,
+            pulseScale.animateTo(
                 targetValue = 1.2f,
                 animationSpec = tween(durationMillis = 150, easing = LinearOutSlowInEasing)
-            ) { value, /* velocity */ -> pulseScale = value }
-            animate(
-                initialValue = 1.2f,
+            )
+            pulseScale.animateTo(
                 targetValue = 1f,
                 animationSpec = tween(durationMillis = 150, delayMillis = 150, easing = FastOutLinearInEasing)
-            ) { value, /* velocity */ -> pulseScale = value }
+            )
         } else if (!triggerPulse) {
             // Reset pulse scale if trigger is false (e.g. on recomposition if no longer pulsing)
             // Also implicitly handles !isVisible case because of the condition in the `if` block
-            pulseScale = 1f
+            pulseScale.snapTo(1f)
         }
     }
 
     // Determine the text style
-    val currentStyle = if (targetColor != null) {
-        style.copy(color = targetColor)
-    } else {
-        style
+    val currentStyle = when {
+        targetBackgroundColor != null && targetColor == null -> {
+            // Background is set, but no specific font color, use default from style
+            style
+        }
+        targetColor != null -> {
+            // Specific font color is set, use it (background might also be set)
+            style.copy(color = targetColor)
+        }
+        else -> {
+            // No background, no specific font color, use style as is
+            style
+        }
+    }
+
+    var currentModifier = modifier
+    if (targetBackgroundColor != null) {
+        currentModifier = currentModifier.then(Modifier.background(targetBackgroundColor))
     }
 
     Text(
         text = char.toString(),
         style = currentStyle, // Apply the potentially modified style
-        modifier = modifier
+        modifier = currentModifier
             .graphicsLayer {
                 alpha = charAlpha
-                scaleX = charScale * pulseScale // Combine scales
-                scaleY = charScale * pulseScale // Combine scales
+                scaleX = charScale * pulseScale.value // Combine scales
+                scaleY = charScale * pulseScale.value // Combine scales
             }
     )
 }
