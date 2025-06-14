@@ -27,6 +27,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Style
+import com.example.ankizero.ui.shared.FlippingWordRow
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
