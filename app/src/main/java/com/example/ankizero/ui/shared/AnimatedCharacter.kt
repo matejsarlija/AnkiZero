@@ -2,15 +2,14 @@ package com.example.ankizero.ui.shared
 
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.* // Import all from core
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.* // Import all from runtime
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -24,11 +23,13 @@ fun AnimatedCharacter(
     isVisible: Boolean,
     modifier: Modifier = Modifier,
     style: TextStyle = LocalTextStyle.current,
-    animationDelay: Int = 0 // Added for potential staggered animations, though current FlashcardView handles sequence
+    animationDelay: Int = 0, // Added for potential staggered animations, though current FlashcardView handles sequence
+    targetColor: Color? = null,
+    triggerPulse: Boolean = false // New parameter
 ) {
     val charAlpha by animateFloatAsState(
         targetValue = if (isVisible) 1f else 0f,
-        animationSpec = tween(durationMillis = 200, delayMillis = animationDelay, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        animationSpec = tween(durationMillis = 200, delayMillis = animationDelay, easing = FastOutSlowInEasing),
         label = "charAlpha"
     )
     val charScale by animateFloatAsState(
@@ -41,14 +42,43 @@ fun AnimatedCharacter(
         label = "charScale"
     )
 
+    var pulseScale by remember { mutableStateOf(1f) }
+
+    LaunchedEffect(isVisible, triggerPulse) {
+        if (isVisible && triggerPulse) {
+            // Start the pulse animation
+            animate(
+                initialValue = 1f,
+                targetValue = 1.2f,
+                animationSpec = tween(durationMillis = 150, easing = LinearOutSlowInEasing)
+            ) { value, /* velocity */ -> pulseScale = value }
+            animate(
+                initialValue = 1.2f,
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = 150, delayMillis = 150, easing = FastOutLinearInEasing)
+            ) { value, /* velocity */ -> pulseScale = value }
+        } else if (!triggerPulse) {
+            // Reset pulse scale if trigger is false (e.g. on recomposition if no longer pulsing)
+            // Also implicitly handles !isVisible case because of the condition in the `if` block
+            pulseScale = 1f
+        }
+    }
+
+    // Determine the text style
+    val currentStyle = if (targetColor != null) {
+        style.copy(color = targetColor)
+    } else {
+        style
+    }
+
     Text(
         text = char.toString(),
-        style = style,
+        style = currentStyle, // Apply the potentially modified style
         modifier = modifier
             .graphicsLayer {
                 alpha = charAlpha
-                scaleX = charScale
-                scaleY = charScale
+                scaleX = charScale * pulseScale // Combine scales
+                scaleY = charScale * pulseScale // Combine scales
             }
     )
 }

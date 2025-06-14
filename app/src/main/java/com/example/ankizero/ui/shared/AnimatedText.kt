@@ -13,6 +13,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
 import com.example.ankizero.ui.theme.AnkiZeroTheme
+import com.example.ankizero.ui.theme.frenchCharacterColors // Import the map
 import kotlinx.coroutines.delay
 
 enum class TextAnimationType {
@@ -31,9 +32,12 @@ fun AnimatedText(
     style: TextStyle = LocalTextStyle.current,
     testTagPrefix: String = "AnimatedTextChar"
 ) {
-    var revealedLetterCount by remember(text, isVisible) { mutableStateOf(0) }
+    var revealedLetterCount by remember(text, isVisible, animationType) { mutableStateOf(0) }
+    var pulsingCharIndices by remember(text, isVisible, animationType) { mutableStateOf(emptySet<Int>()) } // New state
 
     LaunchedEffect(text, isVisible, animationType) {
+        pulsingCharIndices = emptySet() // Reset pulsing state on relevant changes
+
         if (isVisible && animationType == TextAnimationType.TYPEWRITER) {
             revealedLetterCount = 0 // Reset for re-animation if text/visibility changes
             for (i in text.indices) {
@@ -42,6 +46,15 @@ fun AnimatedText(
                     revealedLetterCount = i + 1
                 } else {
                     break // Stop animation if visibility changes mid-way
+                }
+            }
+            // After typewriter animation completes
+            if (isVisible && revealedLetterCount == text.length) {
+                val specialIndices = text.mapIndexedNotNull { index, char ->
+                    if (frenchCharacterColors.containsKey(char)) index else null
+                }.toSet()
+                if (specialIndices.isNotEmpty()) {
+                    pulsingCharIndices = specialIndices
                 }
             }
         } else if (!isVisible && animationType == TextAnimationType.TYPEWRITER) {
@@ -63,10 +76,16 @@ fun AnimatedText(
                 TextAnimationType.TYPEWRITER -> index < revealedLetterCount && isVisible
                 TextAnimationType.FADE_IN_ALL -> isVisible // For FADE_IN_ALL, AnimatedCharacter will handle its own fade based on this
             }
+
+            val charColor = frenchCharacterColors[char] // Get color from map
+            val shouldPulse = pulsingCharIndices.contains(index) // Determine if char should pulse
+
             AnimatedCharacter(
                 char = char,
                 isVisible = charIsVisible,
                 style = style,
+                targetColor = charColor, // Pass the color
+                triggerPulse = shouldPulse, // Pass the trigger
                 // testTag can be more specific if needed, e.g., passed in
                 modifier = Modifier.testTag("$testTagPrefix-$index")
             )
