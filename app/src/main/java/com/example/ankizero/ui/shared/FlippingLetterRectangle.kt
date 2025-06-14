@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
@@ -36,6 +37,37 @@ fun FlippingLetterRectangle(
     )
     val density = LocalDensity.current.density
 
+    // Define colors for the brushed metal effect
+    val metalColorStops = arrayOf(
+        0.0f to Color(0xFFCCCCCC), // Lightest highlight
+        0.2f to Color(0xFFAAAAAA), // Mid-tone
+        0.4f to Color(0xFF888888), // Darker shadow
+        0.6f to Color(0xFFAAAAAA), // Mid-tone
+        0.8f to Color(0xFFCCCCCC), // Lightest highlight
+        1.0f to Color(0xFFBBBBBB)  // Slightly less bright highlight at the edge
+    )
+    val brushedMetalGradient = Brush.linearGradient(
+        colorStops = metalColorStops,
+        //startY = 0f, endY = Float.POSITIVE_INFINITY // A vertical gradient that stretches
+        // Or, for a more horizontal sheen:
+        // startX = 0f, endX = Float.POSITIVE_INFINITY
+        // Let's try a subtle diagonal sheen for a bit more dynamism
+        // start = Offset(0f, 0f), end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY) - this might be too much
+        // For a tall rectangle, a vertical gradient usually works well to simulate light from above/below
+    )
+
+    // Let's refine the gradient for a vertical brushed look on a tall rectangle
+    val brushedMetalVerticalGradient = Brush.verticalGradient(
+        colors = listOf(
+            Color(0xFFE0E0E0), // Top highlight
+            Color(0xFFB0B0B0), // Mid
+            Color(0xFF909090), // Darker part
+            Color(0xFFA0A0A0), // Mid-dark
+            Color(0xFFC0C0C0), // Lighter part
+            Color(0xFFD0D0D0)  // Bottom highlight
+        )
+    )
+
     Box(
         modifier = modifier
             .width(36.dp)
@@ -44,8 +76,8 @@ fun FlippingLetterRectangle(
                 this.rotationY = rotationY
                 cameraDistance = 12 * density // Recommended by Material Design guidelines
             }
-            .background(Color.LightGray, RoundedCornerShape(6.dp))
-            .border(1.dp, Color.Gray, RoundedCornerShape(6.dp)),
+            .background(brushedMetalVerticalGradient, RoundedCornerShape(6.dp))
+            .border(1.dp, Color(0xFF666666), RoundedCornerShape(6.dp)),
         contentAlignment = Alignment.Center
     ) {
         if (rotationY < 90f && char != null) {
