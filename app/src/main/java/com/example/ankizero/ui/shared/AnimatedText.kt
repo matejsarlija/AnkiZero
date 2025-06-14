@@ -13,6 +13,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
 import com.example.ankizero.ui.theme.AnkiZeroTheme
+import com.example.ankizero.ui.theme.HighlightColors // Import HighlightColors
 import com.example.ankizero.ui.theme.frenchCharacterColors // Import the map
 import kotlinx.coroutines.delay
 
@@ -77,15 +78,15 @@ fun AnimatedText(
                 TextAnimationType.FADE_IN_ALL -> isVisible // For FADE_IN_ALL, AnimatedCharacter will handle its own fade based on this
             }
 
-            val specialCharColor = frenchCharacterColors[char] // Renamed for clarity
+            val highlightDetails = frenchCharacterColors[char] // Will be HighlightColors or null
             val shouldPulse = pulsingCharIndices.contains(index) // Determine if char should pulse
 
             AnimatedCharacter(
                 char = char,
                 isVisible = charIsVisible,
                 style = style,
-                targetBackgroundColor = specialCharColor, // Pass as background color
-                targetColor = if (specialCharColor != null) androidx.compose.ui.graphics.Color.Unspecified else null, // Ensure default/contrasting font color
+                targetColor = highlightDetails?.font, // Pass font color from highlightDetails
+                targetBackgroundColor = highlightDetails?.background, // Pass background color from highlightDetails
                 triggerPulse = shouldPulse,
                 modifier = Modifier.testTag("$testTagPrefix-$index")
             )

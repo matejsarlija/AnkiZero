@@ -1,14 +1,17 @@
 package com.example.ankizero.ui.theme
 
 import androidx.compose.ui.graphics.Color
-import com.example.ankizero.R // Added import
+
+// Define the HighlightColors data class
+data class HighlightColors(val font: Color, val background: Color)
 
 // Define the light theme background color directly
 val frenchCharBackgroundLight = Color(0xFFE1BEE7)
 
-val frenchCharacterColors: Map<Char, Color> = mapOf(
-    'è' to frenchCharBackgroundLight,
-    'é' to frenchCharBackgroundLight,
-    'à' to frenchCharBackgroundLight
-    // Add more characters here if they exist, using frenchCharBackgroundLight
+val frenchCharacterColors: Map<Char, HighlightColors> = mapOf(
+    'è' to HighlightColors(font = Color.Blue, background = frenchCharBackgroundLight),
+    'é' to HighlightColors(font = Color.Yellow, background = frenchCharBackgroundLight),
+    'à' to HighlightColors(font = Color.Red, background = frenchCharBackgroundLight)
+    // Add more characters here if they were defined previously,
+    // using frenchCharBackgroundLight for background and new/placeholder font colors.
 )
