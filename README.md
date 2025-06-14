@@ -1,6 +1,6 @@
 # AnkiZero
 
-AnkiZero is an Android application built with Jetpack Compose that helps users with [describe the app's main purpose here - e.g., flashcard learning, note-taking]. It leverages Firebase for [describe Firebase usage - e.g., backend services, analytics, crash reporting].
+AnkiZero is an Android application built with Jetpack Compose that helps users with flashcard learning. It leverages Firebase for analytics & crash reporting.
 
 ## Features
 
