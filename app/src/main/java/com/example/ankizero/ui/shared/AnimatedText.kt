@@ -77,16 +77,16 @@ fun AnimatedText(
                 TextAnimationType.FADE_IN_ALL -> isVisible // For FADE_IN_ALL, AnimatedCharacter will handle its own fade based on this
             }
 
-            val charColor = frenchCharacterColors[char] // Get color from map
+            val specialCharColor = frenchCharacterColors[char] // Renamed for clarity
             val shouldPulse = pulsingCharIndices.contains(index) // Determine if char should pulse
 
             AnimatedCharacter(
                 char = char,
                 isVisible = charIsVisible,
                 style = style,
-                targetColor = charColor, // Pass the color
-                triggerPulse = shouldPulse, // Pass the trigger
-                // testTag can be more specific if needed, e.g., passed in
+                targetBackgroundColor = specialCharColor, // Pass as background color
+                targetColor = if (specialCharColor != null) androidx.compose.ui.graphics.Color.Unspecified else null, // Ensure default/contrasting font color
+                triggerPulse = shouldPulse,
                 modifier = Modifier.testTag("$testTagPrefix-$index")
             )
         }
@@ -100,6 +100,17 @@ fun AnimatedTextTypewriterPreview() {
         AnimatedText(
             text = "Hello Preview",
             style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold)
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "AnimatedText French Chars")
+@Composable
+fun AnimatedTextFrenchCharsPreview() {
+    AnkiZeroTheme {
+        AnimatedText(
+            text = "Voilà l'été, c'est super!", // Text with French characters
+            style = MaterialTheme.typography.headlineMedium
         )
     }
 }
