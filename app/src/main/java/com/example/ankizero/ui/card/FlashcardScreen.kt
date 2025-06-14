@@ -34,7 +34,6 @@ import com.example.ankizero.ui.card.StackedCardsAnimation
 import com.example.ankizero.ui.shared.AnimatedCharacter
 import com.example.ankizero.ui.shared.AnimatedText
 import com.example.ankizero.ui.shared.EnhancedButton // Import the shared button
-import com.example.ankizero.ui.shared.PaperGrid
 import com.example.ankizero.ui.shared.TextAnimationType
 import com.example.ankizero.ui.theme.*
 import androidx.compose.ui.tooling.preview.Preview
@@ -440,11 +439,6 @@ fun FlashcardView(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            PaperGrid(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(RoundedCornerShape(24.dp)) // Ensure grid stays within card bounds
-            )
             // Subtle gradient overlay
             Box(
                 modifier = Modifier
